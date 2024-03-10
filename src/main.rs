@@ -29,18 +29,16 @@ fn start(args: &mut Args) -> io::Result<()> {
 fn walk_dir(cur_dir: PathBuf, dir_name: &Path, quality: i32) -> io::Result<()> {
     for dent in std::fs::read_dir(cur_dir)? {
         let direntry = dent?;
-        if direntry.path().is_file()
-            && direntry
-                .path()
-                .extension()
-                .unwrap_or_default()
-                .to_ascii_lowercase()
-                == "jpg"
+        if direntry
+            .path()
+            .extension()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            == "jpg"
         {
-            match compress(direntry.path(), &dir_name, quality) {
-                Err(e) => eprintln!("{e}"),
-                Ok(_) => (),
-            }
+            let Ok(_) = compress(direntry.path(), &dir_name, quality) else {
+                continue;
+            };
             println!(
                 "done: {}",
                 direntry
