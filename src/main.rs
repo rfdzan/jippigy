@@ -1,6 +1,7 @@
-use std::env;
 use std::env::args;
-use std::path::Path;
+use std::env::{self, Args};
+use std::io;
+use std::path::{Path, PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 fn main() {
     let mut args = args();
@@ -10,15 +11,24 @@ fn main() {
         );
         std::process::exit(1);
     }
+    if let Err(e) = start(&mut args) {
+        eprintln!("{e}");
+    }
+}
+fn start(args: &mut Args) -> io::Result<()> {
     let quality = args.nth(1).unwrap_or_default().parse::<i32>().unwrap();
     let dir_name_from_args = args.nth(0).unwrap_or_default();
-    let cur_dir = env::current_dir().unwrap();
+    let cur_dir = env::current_dir()?;
     let dir_name = Path::new(dir_name_from_args.as_str());
     if !cur_dir.join(dir_name).exists() {
-        std::fs::create_dir(dir_name).unwrap();
+        std::fs::create_dir(dir_name)?;
     }
-    for dent in std::fs::read_dir(cur_dir).unwrap() {
-        let direntry = dent.unwrap();
+    walk_dir(cur_dir, dir_name, quality)?;
+    Ok(())
+}
+fn walk_dir(cur_dir: PathBuf, dir_name: &Path, quality: i32) -> io::Result<()> {
+    for dent in std::fs::read_dir(cur_dir)? {
+        let direntry = dent?;
         if direntry.path().is_file()
             && direntry
                 .path()
@@ -27,22 +37,33 @@ fn main() {
                 .to_ascii_lowercase()
                 == "jpg"
         {
-            compress(direntry.path(), &dir_name, quality);
-            println!("done: {:?}", direntry.path().file_name());
+            match compress(direntry.path(), &dir_name, quality) {
+                Err(e) => eprintln!("{e}"),
+                Ok(_) => (),
+            }
+            println!(
+                "done: {}",
+                direntry
+                    .path()
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+            );
         }
     }
+    Ok(())
 }
-fn compress<T>(p: T, dir: &Path, q: i32)
+fn compress<T>(p: T, dir: &Path, q: i32) -> io::Result<()>
 where
     T: AsRef<Path>,
 {
     let path_as_ref = p.as_ref();
     let filename = path_as_ref.file_name().unwrap_or_default();
-    let read = std::fs::read(path_as_ref).unwrap();
+    let read = std::fs::read(path_as_ref)?;
     let image: image::RgbImage = decompress_image(&read).unwrap();
     let jpeg_data = compress_image(&image, q, Sub2x2).unwrap();
     match std::fs::write(dir.join(filename), jpeg_data) {
-        Err(e) => eprintln!("{e}"),
-        Ok(_) => (),
+        Err(e) => Err(e),
+        Ok(_) => Ok(()),
     }
 }
