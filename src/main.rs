@@ -1,5 +1,5 @@
 use anyhow;
-use crossbeam::deque::{Steal, Stealer, Worker};
+use crossbeam::deque::Worker;
 use std::env::args;
 use std::env::{self, Args};
 use std::fs::DirEntry;
@@ -31,19 +31,26 @@ fn get_params(args: &mut Args) -> io::Result<()> {
     Ok(())
 }
 fn spawn_workers(cur_dir: PathBuf, dir_name: PathBuf, quality: i32) -> io::Result<()> {
-    let worker = Worker::new_fifo();
+    let main_worker = Worker::new_fifo();
     for dent in std::fs::read_dir(cur_dir)? {
         let direntry = dent?;
-        worker.push(direntry);
+        main_worker.push(direntry);
     }
-    let stealer = worker.stealer();
+    let device_num = 4;
+    let task_amount = {
+        let as_f64 = main_worker.len() as f64 / f64::try_from(device_num).unwrap().ceil();
+        as_f64 as usize
+    };
+    let main_stealer = main_worker.stealer();
     let clone_dir_name = dir_name.clone();
     let mut handles = vec![];
-    for id in 0..4 {
+    for id in 0..device_num {
         let thread_dir_name = clone_dir_name.clone();
-        let thread_stealer = stealer.clone();
+        let thread_worker = Worker::new_fifo();
+        let _thread_stealer = main_stealer.steal_batch_with_limit(&thread_worker, task_amount);
+        println!("{}", thread_worker.len());
         let handle = thread::spawn(move || {
-            while let Steal::Success(direntry) = thread_stealer.steal() {
+            while let Some(direntry) = thread_worker.pop() {
                 do_work(direntry, thread_dir_name.clone(), quality, id);
             }
         });
