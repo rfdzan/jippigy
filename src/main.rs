@@ -1,3 +1,4 @@
+use anyhow;
 use std::env::args;
 use std::env::{self, Args};
 use std::io;
@@ -36,32 +37,34 @@ fn walk_dir(cur_dir: PathBuf, dir_name: &Path, quality: i32) -> io::Result<()> {
             .to_ascii_lowercase()
             == "jpg"
         {
-            let Ok(_) = compress(direntry.path(), &dir_name, quality) else {
-                continue;
+            match compress(direntry.path(), &dir_name, quality) {
+                Err(e) => {
+                    eprintln!("{e}");
+                }
+                Ok(msg) => {
+                    println!("{msg}");
+                }
             };
-            println!(
-                "done: {}",
-                direntry
-                    .path()
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-            );
         }
     }
     Ok(())
 }
-fn compress<T>(p: T, dir: &Path, q: i32) -> io::Result<()>
+fn compress<T>(p: T, dir: &Path, q: i32) -> anyhow::Result<String>
 where
     T: AsRef<Path>,
 {
     let path_as_ref = p.as_ref();
     let filename = path_as_ref.file_name().unwrap_or_default();
     let read = std::fs::read(path_as_ref)?;
-    let image: image::RgbImage = decompress_image(&read).unwrap();
-    let jpeg_data = compress_image(&image, q, Sub2x2).unwrap();
-    match std::fs::write(dir.join(filename), jpeg_data) {
-        Err(e) => Err(e),
-        Ok(_) => Ok(()),
-    }
+    let image: image::RgbImage = decompress_image(&read)?;
+    let jpeg_data = compress_image(&image, q, Sub2x2)?;
+    std::fs::write(dir.join(filename), jpeg_data)?;
+    let success_msg = format!(
+        "done: {}",
+        path_as_ref
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+    );
+    Ok(success_msg)
 }
