@@ -1,8 +1,11 @@
 use anyhow;
+use crossbeam::deque::{Steal, Stealer, Worker};
 use std::env::args;
 use std::env::{self, Args};
+use std::fs::DirEntry;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::thread;
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 fn main() {
     let mut args = args();
@@ -12,44 +15,64 @@ fn main() {
         );
         std::process::exit(1);
     }
-    if let Err(e) = start(&mut args) {
+    if let Err(e) = get_params(&mut args) {
         eprintln!("{e}");
     }
 }
-fn start(args: &mut Args) -> io::Result<()> {
+fn get_params(args: &mut Args) -> io::Result<()> {
     let quality = args.nth(1).unwrap_or_default().parse::<i32>().unwrap();
     let dir_name_from_args = args.nth(0).unwrap_or_default();
     let cur_dir = env::current_dir()?;
-    let dir_name = Path::new(dir_name_from_args.as_str());
-    if !cur_dir.join(dir_name).exists() {
-        std::fs::create_dir(dir_name)?;
+    let dir_name = PathBuf::from(dir_name_from_args.as_str());
+    if !cur_dir.join(dir_name.as_path()).exists() {
+        std::fs::create_dir(dir_name.as_path())?;
     }
-    walk_dir(cur_dir, dir_name, quality)?;
+    spawn_workers(cur_dir, dir_name, quality)?;
     Ok(())
 }
-fn walk_dir(cur_dir: PathBuf, dir_name: &Path, quality: i32) -> io::Result<()> {
+fn spawn_workers(cur_dir: PathBuf, dir_name: PathBuf, quality: i32) -> io::Result<()> {
+    let worker = Worker::new_fifo();
     for dent in std::fs::read_dir(cur_dir)? {
         let direntry = dent?;
-        if direntry
-            .path()
-            .extension()
-            .unwrap_or_default()
-            .to_ascii_lowercase()
-            == "jpg"
-        {
-            match compress(direntry.path(), &dir_name, quality) {
-                Err(e) => {
-                    eprintln!("{e}");
-                }
-                Ok(msg) => {
-                    println!("{msg}");
-                }
-            };
-        }
+        worker.push(direntry);
+    }
+    let stealer = worker.stealer();
+    let clone_dir_name = dir_name.clone();
+    let mut handles = vec![];
+    for id in 0..4 {
+        let thread_dir_name = clone_dir_name.clone();
+        let thread_stealer = stealer.clone();
+        let handle = thread::spawn(move || {
+            while let Steal::Success(direntry) = thread_stealer.steal() {
+                do_work(direntry, thread_dir_name.clone(), quality, id);
+            }
+        });
+        handles.push(handle);
+    }
+    for h in handles.into_iter() {
+        h.join().unwrap();
     }
     Ok(())
 }
-fn compress<T>(p: T, dir: &Path, q: i32) -> anyhow::Result<String>
+fn do_work(direntry: DirEntry, dir_name: PathBuf, quality: i32, worker: i32) {
+    if direntry
+        .path()
+        .extension()
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        == "jpg"
+    {
+        match compress(direntry.path(), dir_name, quality, worker) {
+            Err(e) => {
+                eprintln!("{e}");
+            }
+            Ok(msg) => {
+                println!("{msg}");
+            }
+        };
+    }
+}
+fn compress<T>(p: T, dir: PathBuf, q: i32, worker: i32) -> anyhow::Result<String>
 where
     T: AsRef<Path>,
 {
@@ -60,11 +83,12 @@ where
     let jpeg_data = compress_image(&image, q, Sub2x2)?;
     std::fs::write(dir.join(filename), jpeg_data)?;
     let success_msg = format!(
-        "done: {}",
+        "done: {} (worker {})",
         path_as_ref
             .file_name()
             .unwrap_or_default()
-            .to_string_lossy()
+            .to_string_lossy(),
+        worker
     );
     Ok(success_msg)
 }
