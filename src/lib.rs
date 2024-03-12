@@ -109,7 +109,8 @@ impl<'a> TaskWorker<'a> {
                 .steal_batch_with_limit(&thread_worker, self.task_amount);
             let handle = thread::spawn(move || {
                 while let Some(direntry) = thread_worker.pop() {
-                    Compress::do_work(direntry, thread_dir_name.clone(), self.quality, id + 1);
+                    Compress::new(direntry, thread_dir_name.clone(), self.quality, id + 1)
+                        .do_work();
                 }
             });
             handles.push(handle);
@@ -117,13 +118,31 @@ impl<'a> TaskWorker<'a> {
         return handles;
     }
 }
-pub struct Compress {}
+pub struct Compress {
+    direntry: Option<DirEntry>,
+    dir_name: PathBuf,
+    quality: i32,
+    worker: i32,
+}
 impl Compress {
-    pub fn do_work(direntry: Option<DirEntry>, dir_name: PathBuf, quality: i32, worker: i32) {
-        let Some(val_direntry) = direntry else {
+    pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: i32, worker: i32) -> Self {
+        Self {
+            direntry,
+            dir_name,
+            quality,
+            worker,
+        }
+    }
+    pub fn do_work(self) {
+        let Some(val_direntry) = self.direntry else {
             return;
         };
-        match Compress::compress(val_direntry.path(), dir_name, quality, worker) {
+        match Compress::compress(
+            val_direntry.path(),
+            self.dir_name,
+            self.quality,
+            self.worker,
+        ) {
             Err(e) => {
                 eprintln!("{e}");
             }
