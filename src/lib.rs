@@ -1,4 +1,6 @@
-use clap::Parser;
+#![warn(missing_docs)]
+//! <Doc to be written>
+use clap::{Parser, ValueEnum};
 use crossbeam::deque::{Stealer, Worker};
 use std::env::current_dir;
 use std::io;
@@ -7,8 +9,10 @@ use std::thread;
 use std::{fs::DirEntry, path::PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 #[derive(Parser, Debug)]
+/// Get arguments from the terminal.
 pub struct TaskArgs {
-    /// Quality in ratio to the original.
+    /// The trade-off between image quality and resulting size.
+    /// Ranges from 1 (smallest file, worst quality) to 100 (biggest file, best quality).
     #[arg(default_value_t = 50)]
     quality: u8,
     /// The output directory of compressed images.
@@ -19,16 +23,19 @@ pub struct TaskArgs {
     device: u8,
 }
 impl TaskArgs {
+    /// Returns the quality after compression.
     pub fn get_quality(&self) -> i32 {
         self.quality.into()
     }
 }
+/// Obtain tasks from the current working directory.
 pub struct Tasks {
     queue: Worker<Option<DirEntry>>,
     device_num: u8,
     output_dir: PathBuf,
 }
 impl Tasks {
+    /// Creates a new Task.
     pub fn create(args: &TaskArgs) -> io::Result<Tasks> {
         let cur_dir = current_dir()?;
         Ok(Tasks {
@@ -37,16 +44,20 @@ impl Tasks {
             output_dir: Tasks::create_output_dir(&cur_dir, args.output_dir.as_str()),
         })
     }
+    /// Returns a work-stealing queue from which worker threads are going to steal.
     pub fn get_main_worker(self) -> Worker<Option<DirEntry>> {
         self.queue
     }
+    /// Returns the specified amount of worker threads to be used.
     pub fn get_device(&self) -> i32 {
         let device = self.device_num - 1;
         device.into()
     }
+    /// Returns the output directory
     pub fn get_output_dir(&self) -> PathBuf {
         self.output_dir.clone()
     }
+    /// Attempts to calculate the upper limit of the amount of work each thread should take.
     pub fn get_task_amount(&self) -> usize {
         let task_amount = {
             if self.device_num > 1 {
@@ -76,6 +87,7 @@ impl Tasks {
         output_path
     }
 }
+/// Worker threads.
 pub struct TaskWorker<'a> {
     device_num: i32,
     quality: i32,
@@ -84,6 +96,7 @@ pub struct TaskWorker<'a> {
     task_amount: usize,
 }
 impl<'a> TaskWorker<'a> {
+    /// Creates a new TaskWorker.
     pub fn new(
         device_num: i32,
         quality: i32,
@@ -99,6 +112,8 @@ impl<'a> TaskWorker<'a> {
             task_amount,
         }
     }
+    /// Distribute work among threads.
+    /// This method consumes the TaskWorker and returns a vector containing the handles to each thread.
     pub fn send_to_threads(self) -> Vec<thread::JoinHandle<()>> {
         let mut handles = vec![];
         for id in 0..self.device_num {
@@ -118,6 +133,7 @@ impl<'a> TaskWorker<'a> {
         return handles;
     }
 }
+/// Compression-related work.
 pub struct Compress {
     direntry: Option<DirEntry>,
     dir_name: PathBuf,
@@ -125,6 +141,7 @@ pub struct Compress {
     worker: i32,
 }
 impl Compress {
+    /// Creates a new compression task.
     pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: i32, worker: i32) -> Self {
         Self {
             direntry,
@@ -133,6 +150,7 @@ impl Compress {
             worker,
         }
     }
+    /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
     pub fn do_work(self) {
         let Some(val_direntry) = self.direntry else {
             return;
