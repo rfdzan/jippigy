@@ -4,6 +4,7 @@ use smoljpg::{Compress, TaskArgs, TaskWorker, Tasks};
 use std::io;
 fn main() {
     let args = TaskArgs::parse();
+    args.verify();
     if let Err(e) = spawn_workers(args) {
         eprintln!("{e}");
     }

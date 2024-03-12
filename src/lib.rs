@@ -1,6 +1,6 @@
 #![warn(missing_docs)]
 //! <Doc to be written>
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use crossbeam::deque::{Stealer, Worker};
 use std::env::current_dir;
 use std::io;
@@ -26,6 +26,13 @@ impl TaskArgs {
     /// Returns the quality after compression.
     pub fn get_quality(&self) -> i32 {
         self.quality.into()
+    }
+    /// Checks command-line input.
+    pub fn verify(&self) {
+        if self.quality < 1 || self.quality > 100 {
+            eprintln!("Quality must be between 1 and 100");
+            std::process::exit(1);
+        }
     }
 }
 /// Obtain tasks from the current working directory.
