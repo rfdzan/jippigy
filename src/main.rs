@@ -1,42 +1,23 @@
 use anyhow;
+use clap::Parser;
 use crossbeam::deque::Worker;
-use std::env::args;
-use std::env::{self, Args};
+use smoljpg::{TaskArgs, Tasks};
 use std::fs::DirEntry;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::thread;
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 fn main() {
-    let mut args = args();
-    if args.len() != 3 {
-        eprintln!(
-            "Missing two required arguments in this exact order:\n1. Final quality\n2. Output directory name"
-        );
-        std::process::exit(1);
-    }
-    if let Err(e) = get_params(&mut args) {
+    let args = TaskArgs::parse();
+    if let Err(e) = spawn_workers(args) {
         eprintln!("{e}");
     }
 }
-fn get_params(args: &mut Args) -> io::Result<()> {
-    let quality = args.nth(1).unwrap_or_default().parse::<i32>().unwrap();
-    let dir_name_from_args = args.nth(0).unwrap_or_default();
-    let cur_dir = env::current_dir()?;
-    let dir_name = PathBuf::from(dir_name_from_args.as_str());
-    if !cur_dir.join(dir_name.as_path()).exists() {
-        std::fs::create_dir(dir_name.as_path())?;
-    }
-    spawn_workers(cur_dir, dir_name, quality)?;
-    Ok(())
-}
-fn spawn_workers(cur_dir: PathBuf, dir_name: PathBuf, quality: i32) -> io::Result<()> {
-    let main_worker = Worker::new_fifo();
-    for dent in std::fs::read_dir(cur_dir)? {
-        let direntry = dent?;
-        main_worker.push(direntry);
-    }
-    let device_num = 4;
+fn spawn_workers(args: TaskArgs) -> io::Result<()> {
+    let create_task = Tasks::create(&args)?;
+    let device_num = create_task.get_device();
+    let dir_name = create_task.get_output_dir();
+    let main_worker = create_task.get_main_worker();
     let task_amount = {
         let as_f64 = main_worker.len() as f64 / f64::try_from(device_num).unwrap().ceil();
         as_f64 as usize
@@ -48,7 +29,7 @@ fn spawn_workers(cur_dir: PathBuf, dir_name: PathBuf, quality: i32) -> io::Resul
         let thread_dir_name = clone_dir_name.clone();
         let thread_worker = Worker::new_fifo();
         let _thread_stealer = main_stealer.steal_batch_with_limit(&thread_worker, task_amount);
-        println!("{}", thread_worker.len());
+        let quality = args.get_quality();
         let handle = thread::spawn(move || {
             while let Some(direntry) = thread_worker.pop() {
                 do_work(direntry, thread_dir_name.clone(), quality, id);
@@ -61,15 +42,18 @@ fn spawn_workers(cur_dir: PathBuf, dir_name: PathBuf, quality: i32) -> io::Resul
     }
     Ok(())
 }
-fn do_work(direntry: DirEntry, dir_name: PathBuf, quality: i32, worker: i32) {
-    if direntry
+fn do_work(direntry: Option<DirEntry>, dir_name: PathBuf, quality: i32, worker: i32) {
+    let Some(val_direntry) = direntry else {
+        return;
+    };
+    if val_direntry
         .path()
         .extension()
         .unwrap_or_default()
         .to_ascii_lowercase()
         == "jpg"
     {
-        match compress(direntry.path(), dir_name, quality, worker) {
+        match compress(val_direntry.path(), dir_name, quality, worker) {
             Err(e) => {
                 eprintln!("{e}");
             }
