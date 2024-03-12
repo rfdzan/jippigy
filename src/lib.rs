@@ -1,5 +1,6 @@
 #![warn(missing_docs)]
-//! <Doc to be written>
+//! smoljpg
+//! A multi-threaded image compression tool, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 use clap::Parser;
 use crossbeam::deque::{Stealer, Worker};
 use std::env::current_dir;
@@ -11,7 +12,6 @@ use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 #[derive(Parser, Debug)]
 /// Get arguments from the terminal.
 pub struct TaskArgs {
-    /// The trade-off between image quality and resulting size.
     /// Ranges from 1 (smallest file, worst quality) to 100 (biggest file, best quality).
     #[arg(default_value_t = 50)]
     quality: u8,
