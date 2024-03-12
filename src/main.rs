@@ -1,70 +1,36 @@
-use anyhow;
-use std::env::args;
-use std::env::{self, Args};
+use clap::Parser;
+use crossbeam::deque::Steal;
+use smoljpg::{Compress, TaskArgs, TaskWorker, Tasks};
 use std::io;
-use std::path::{Path, PathBuf};
-use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 fn main() {
-    let mut args = args();
-    if args.len() != 3 {
-        eprintln!(
-            "Missing two required arguments in this exact order:\n1. Final quality\n2. Output directory name"
-        );
-        std::process::exit(1);
-    }
-    if let Err(e) = start(&mut args) {
+    let args = TaskArgs::parse();
+    args.verify();
+    if let Err(e) = spawn_workers(args) {
         eprintln!("{e}");
     }
 }
-fn start(args: &mut Args) -> io::Result<()> {
-    let quality = args.nth(1).unwrap_or_default().parse::<i32>().unwrap();
-    let dir_name_from_args = args.nth(0).unwrap_or_default();
-    let cur_dir = env::current_dir()?;
-    let dir_name = Path::new(dir_name_from_args.as_str());
-    if !cur_dir.join(dir_name).exists() {
-        std::fs::create_dir(dir_name)?;
+fn spawn_workers(args: TaskArgs) -> io::Result<()> {
+    let create_task = Tasks::create(&args)?;
+    let device_num = create_task.get_device();
+    let dir_name = create_task.get_output_dir();
+    let task_amount = create_task.get_task_amount();
+    let quality = args.get_quality();
+    let main_worker = create_task.get_main_worker();
+    let main_stealer = main_worker.stealer();
+    let handles = TaskWorker::new(
+        device_num,
+        quality,
+        dir_name.clone(),
+        &main_stealer,
+        task_amount,
+    )
+    .send_to_threads();
+    // Makes sure all entries in the queue are consumed.
+    while let Steal::Success(direntry) = main_stealer.steal() {
+        Compress::new(direntry, dir_name.clone(), quality, 0).do_work();
     }
-    walk_dir(cur_dir, dir_name, quality)?;
-    Ok(())
-}
-fn walk_dir(cur_dir: PathBuf, dir_name: &Path, quality: i32) -> io::Result<()> {
-    for dent in std::fs::read_dir(cur_dir)? {
-        let direntry = dent?;
-        if direntry
-            .path()
-            .extension()
-            .unwrap_or_default()
-            .to_ascii_lowercase()
-            == "jpg"
-        {
-            match compress(direntry.path(), &dir_name, quality) {
-                Err(e) => {
-                    eprintln!("{e}");
-                }
-                Ok(msg) => {
-                    println!("{msg}");
-                }
-            };
-        }
+    for h in handles.into_iter() {
+        h.join().unwrap();
     }
     Ok(())
-}
-fn compress<T>(p: T, dir: &Path, q: i32) -> anyhow::Result<String>
-where
-    T: AsRef<Path>,
-{
-    let path_as_ref = p.as_ref();
-    let filename = path_as_ref.file_name().unwrap_or_default();
-    let read = std::fs::read(path_as_ref)?;
-    let image: image::RgbImage = decompress_image(&read)?;
-    let jpeg_data = compress_image(&image, q, Sub2x2)?;
-    std::fs::write(dir.join(filename), jpeg_data)?;
-    let success_msg = format!(
-        "done: {}",
-        path_as_ref
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-    );
-    Ok(success_msg)
 }
