@@ -1,11 +1,11 @@
 #![warn(missing_docs)]
-//! smoljpg
 //! A multi-threaded image compression tool, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 use clap::Parser;
-use crossbeam::deque::{Stealer, Worker};
+use crossbeam::deque::{Steal, Stealer, Worker};
 use std::env::current_dir;
 use std::io;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::{fs::DirEntry, path::PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
@@ -123,16 +123,51 @@ impl<'a> TaskWorker<'a> {
     /// This method consumes the TaskWorker and returns a vector containing the handles to each thread.
     pub fn send_to_threads(self) -> Vec<thread::JoinHandle<()>> {
         let mut handles = vec![];
-        for id in 0..self.device_num {
-            let thread_dir_name = self.dir_name.clone();
+        let stealers = Arc::new(Mutex::new(Vec::new()));
+        let mut workers = Vec::new();
+        for _ in 0..self.device_num {
             let thread_worker = Worker::new_fifo();
             let _thread_stealer = self
                 .stealer
                 .steal_batch_with_limit(&thread_worker, self.task_amount);
+            let _push_stealer = stealers.lock().unwrap().push(thread_worker.stealer());
+            let _push_worker = workers.push(thread_worker);
+        }
+        for id in 0..self.device_num {
+            let thread_worker = workers.pop().unwrap();
+            let local_stealer = Arc::clone(&stealers);
+            let thread_dir_name = self.dir_name.clone();
             let handle = thread::spawn(move || {
-                while let Some(direntry) = thread_worker.pop() {
-                    Compress::new(direntry, thread_dir_name.clone(), self.quality, id + 1)
-                        .do_work();
+                let mut checks: Vec<bool> = Vec::with_capacity(self.device_num as usize);
+                loop {
+                    if let Some(direntry) = thread_worker.pop() {
+                        Compress::new(direntry, thread_dir_name.clone(), self.quality, id + 1)
+                            .do_work();
+                        continue;
+                    }
+                    let stealer_iter = local_stealer.try_lock().ok();
+                    if let Some(iter) = stealer_iter {
+                        for stealer in iter.iter() {
+                            if let Steal::Success(direntry) = stealer.steal() {
+                                Compress::new(
+                                    direntry,
+                                    thread_dir_name.clone(),
+                                    self.quality,
+                                    id + 1,
+                                )
+                                .do_work();
+                            }
+                            if stealer.is_empty() {
+                                checks.push(true);
+                            } else {
+                                checks.push(false);
+                            }
+                        }
+                        if checks.iter().all(|val| val == &true) {
+                            break;
+                        }
+                        checks.clear();
+                    }
                 }
             });
             handles.push(handle);
@@ -166,7 +201,7 @@ impl Compress {
             val_direntry.path(),
             self.dir_name,
             self.quality,
-            self.worker,
+            self.worker + 1,
         ) {
             Err(e) => {
                 eprintln!("{e}");
