@@ -58,9 +58,8 @@ impl Tasks {
         self.queue
     }
     /// Returns the specified amount of worker threads to be used.
-    pub fn get_device(&self) -> i32 {
-        let device = self.device_num - 1;
-        device.into()
+    pub fn get_device(&self) -> u8 {
+        self.device_num - 1
     }
     /// Returns the output directory
     pub fn get_output_dir(&self) -> PathBuf {
@@ -98,7 +97,7 @@ impl Tasks {
 }
 /// Worker threads.
 pub struct TaskWorker<'a> {
-    device_num: i32,
+    device_num: u8,
     quality: i32,
     dir_name: PathBuf,
     stealer: &'a Stealer<Option<DirEntry>>,
@@ -107,7 +106,7 @@ pub struct TaskWorker<'a> {
 impl<'a> TaskWorker<'a> {
     /// Creates a new TaskWorker.
     pub fn new(
-        device_num: i32,
+        device_num: u8,
         quality: i32,
         dir_name: PathBuf,
         stealer: &'a Stealer<Option<DirEntry>>,
@@ -124,9 +123,7 @@ impl<'a> TaskWorker<'a> {
     /// Distribute work among threads.
     /// This method consumes the TaskWorker and returns a vector containing the handles to each thread.
     pub fn send_to_threads(self) -> Option<Vec<thread::JoinHandle<()>>> {
-        // self.device num is u8, so this conversion must always succeed.
-        let device_num_as_usize =
-            usize::try_from(self.device_num).expect("BUG: this conversion must always succeed");
+        let device_num_as_usize = usize::from(self.device_num);
         let mut handles = Vec::with_capacity(device_num_as_usize);
         let mut stealers = Vec::with_capacity(device_num_as_usize);
         let mut workers = Vec::with_capacity(device_num_as_usize);
@@ -185,11 +182,11 @@ pub struct Compress {
     direntry: Option<DirEntry>,
     dir_name: PathBuf,
     quality: i32,
-    worker: i32,
+    worker: u8,
 }
 impl Compress {
     /// Creates a new compression task.
-    pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: i32, worker: i32) -> Self {
+    pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: i32, worker: u8) -> Self {
         Self {
             direntry,
             dir_name,
@@ -216,7 +213,7 @@ impl Compress {
             }
         };
     }
-    fn compress<T>(p: T, dir: PathBuf, q: i32, worker: i32) -> anyhow::Result<String>
+    fn compress<T>(p: T, dir: PathBuf, q: i32, worker: u8) -> anyhow::Result<String>
     where
         T: AsRef<Path>,
     {
