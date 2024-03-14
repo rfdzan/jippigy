@@ -122,52 +122,55 @@ impl<'a> TaskWorker<'a> {
     /// Distribute work among threads.
     /// This method consumes the TaskWorker and returns a vector containing the handles to each thread.
     pub fn send_to_threads(self) -> Vec<thread::JoinHandle<()>> {
-        let mut handles = vec![];
-        let stealers = Arc::new(Mutex::new(Vec::new()));
-        let mut workers = Vec::new();
+        // self.device num is u8, so this conversion must always succeed.
+        let device_num_as_usize =
+            usize::try_from(self.device_num).expect("BUG: this conversion must always succeed");
+        let mut handles = Vec::with_capacity(device_num_as_usize);
+        let mut stealers = Vec::with_capacity(device_num_as_usize);
+        let mut workers = Vec::with_capacity(device_num_as_usize);
         for _ in 0..self.device_num {
             let thread_worker = Worker::new_fifo();
             let _thread_stealer = self
                 .stealer
                 .steal_batch_with_limit(&thread_worker, self.task_amount);
-            let _push_stealer = stealers.lock().unwrap().push(thread_worker.stealer());
+            let _push_stealer = stealers.push(thread_worker.stealer());
             let _push_worker = workers.push(thread_worker);
         }
+        let to_steal_from = Arc::new(Mutex::new(stealers));
         for id in 0..self.device_num {
             let thread_worker = workers.pop().unwrap();
-            let local_stealer = Arc::clone(&stealers);
+            let local_stealer = Arc::clone(&to_steal_from);
             let thread_dir_name = self.dir_name.clone();
             let handle = thread::spawn(move || {
-                let mut checks: Vec<bool> = Vec::with_capacity(self.device_num as usize);
+                let mut queues_empty = Vec::with_capacity(device_num_as_usize);
                 loop {
                     if let Some(direntry) = thread_worker.pop() {
                         Compress::new(direntry, thread_dir_name.clone(), self.quality, id + 1)
                             .do_work();
                         continue;
                     }
-                    let stealer_iter = local_stealer.try_lock().ok();
-                    if let Some(iter) = stealer_iter {
-                        for stealer in iter.iter() {
-                            if let Steal::Success(direntry) = stealer.steal() {
-                                Compress::new(
-                                    direntry,
-                                    thread_dir_name.clone(),
-                                    self.quality,
-                                    id + 1,
-                                )
-                                .do_work();
-                            }
-                            if stealer.is_empty() {
-                                checks.push(true);
-                            } else {
-                                checks.push(false);
-                            }
+                    let gain_lock = local_stealer.try_lock().ok();
+                    let Some(list_of_stealers) = gain_lock else {
+                        continue;
+                    };
+                    for stealer in list_of_stealers.iter() {
+                        let Steal::Success(direntry) = stealer.steal() else {
+                            continue;
+                        };
+                        Compress::new(direntry, thread_dir_name.clone(), self.quality, id + 1)
+                            .do_work();
+                        if stealer.is_empty() {
+                            queues_empty.push(true);
+                        } else {
+                            queues_empty.push(false);
                         }
-                        if checks.iter().all(|val| val == &true) {
-                            break;
-                        }
-                        checks.clear();
                     }
+                    // If all worker threads have exhausted their queue,
+                    // exit this loop
+                    if queues_empty.iter().all(|val| val == &true) {
+                        break;
+                    }
+                    queues_empty.clear();
                 }
             });
             handles.push(handle);
