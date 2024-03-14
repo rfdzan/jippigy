@@ -1,6 +1,7 @@
 #![warn(missing_docs)]
 //! A multi-threaded image compression tool, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 use clap::Parser;
+use colored::Colorize;
 use crossbeam::deque::{Steal, Stealer, Worker};
 use image::EncodableLayout;
 use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
@@ -45,9 +46,9 @@ pub struct Tasks {
 }
 impl Tasks {
     /// Creates a new Task.
-    pub fn create(args: &TaskArgs) -> io::Result<Tasks> {
+    pub fn create(args: &TaskArgs) -> io::Result<Self> {
         let cur_dir = current_dir()?;
-        Ok(Tasks {
+        Ok(Self {
             queue: Tasks::get_tasks(&cur_dir)?,
             device_num: args.device,
             output_dir: Tasks::create_output_dir(&cur_dir, args.output_dir.as_str()),
@@ -136,7 +137,7 @@ impl<'a> TaskWorker<'a> {
             workers.push(thread_worker);
         }
         let to_steal_from = Arc::new(Mutex::new(stealers));
-        for id in 0..self.device_num {
+        for _ in 0..self.device_num {
             let thread_worker = workers.pop()?;
             let local_stealer = Arc::clone(&to_steal_from);
             let thread_dir_name = self.dir_name.clone();
@@ -144,8 +145,7 @@ impl<'a> TaskWorker<'a> {
                 let mut queues_empty = Vec::with_capacity(device_num_as_usize);
                 loop {
                     if let Some(direntry) = thread_worker.pop() {
-                        Compress::new(direntry, thread_dir_name.clone(), self.quality, id + 1)
-                            .do_work();
+                        Compress::new(direntry, thread_dir_name.clone(), self.quality).do_work();
                         continue;
                     }
                     let gain_lock = local_stealer.try_lock().ok();
@@ -156,8 +156,7 @@ impl<'a> TaskWorker<'a> {
                         let Steal::Success(direntry) = stealer.steal() else {
                             continue;
                         };
-                        Compress::new(direntry, thread_dir_name.clone(), self.quality, id + 1)
-                            .do_work();
+                        Compress::new(direntry, thread_dir_name.clone(), self.quality).do_work();
                         if stealer.is_empty() {
                             queues_empty.push(true);
                         } else {
@@ -182,16 +181,14 @@ pub struct Compress {
     direntry: Option<DirEntry>,
     dir_name: PathBuf,
     quality: i32,
-    worker: u8,
 }
 impl Compress {
     /// Creates a new compression task.
-    pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: i32, worker: u8) -> Self {
+    pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: i32) -> Self {
         Self {
             direntry,
             dir_name,
             quality,
-            worker,
         }
     }
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
@@ -199,12 +196,7 @@ impl Compress {
         let Some(val_direntry) = self.direntry else {
             return;
         };
-        match Compress::compress(
-            val_direntry.path(),
-            self.dir_name,
-            self.quality,
-            self.worker + 1,
-        ) {
+        match Compress::compress(val_direntry.path(), self.dir_name, self.quality) {
             Err(e) => {
                 eprintln!("{e}");
             }
@@ -213,7 +205,7 @@ impl Compress {
             }
         };
     }
-    fn compress<T>(p: T, dir: PathBuf, q: i32, worker: u8) -> anyhow::Result<String>
+    fn compress<T>(p: T, dir: PathBuf, q: i32) -> anyhow::Result<String>
     where
         T: AsRef<Path>,
     {
@@ -227,8 +219,13 @@ impl Compress {
             .read()?
             .compress()?
             .preserve_exif()?;
-        std::fs::write(dir.join(&filename), with_exif_preserved.encoder().bytes())?;
-        let success_msg = format!("done: {filename} (worker {worker})");
+        let before_size = with_exif_preserved.format_size_before();
+        let after_size = with_exif_preserved.format_size_after();
+        std::fs::write(
+            dir.join(&filename),
+            with_exif_preserved.result().encoder().bytes(),
+        )?;
+        let success_msg = format!("{filename} before: {before_size} after: {after_size}");
         Ok(success_msg)
     }
 }
@@ -265,13 +262,56 @@ impl<'a> CompressImage<'a> {
     /// Parse EXIF information from the original bytes and write it
     /// into the compressed bytes. Returns a `img_parts::jpeg::Jpeg`
     /// which we can convert later to a Byte.
-    fn preserve_exif(self) -> anyhow::Result<Jpeg> {
+    fn preserve_exif(self) -> anyhow::Result<CompressionResult> {
+        let before_size = self.original_bytes.len();
+        let after_size = self.compressed_bytes.len();
         let original_img_parts = Jpeg::from_bytes(self.original_bytes.into())?;
         let exif = original_img_parts.exif().unwrap_or_default();
         let icc_profile = original_img_parts.icc_profile().unwrap_or_default();
         let mut compressed_img_part = Jpeg::from_bytes(self.compressed_bytes.into())?;
         compressed_img_part.set_exif(exif.into());
         compressed_img_part.set_icc_profile(icc_profile.into());
-        Ok(compressed_img_part)
+        Ok(CompressionResult::store(
+            compressed_img_part,
+            before_size,
+            after_size,
+        ))
+    }
+}
+/// Contains the result of compressed image
+struct CompressionResult {
+    compressed_img: img_parts::jpeg::Jpeg,
+    before_length: usize,
+    after_length: usize,
+}
+impl CompressionResult {
+    /// Store the result of compressed image,
+    /// along with additional information.
+    fn store(
+        compressed_img: img_parts::jpeg::Jpeg,
+        before_length: usize,
+        after_length: usize,
+    ) -> Self {
+        Self {
+            compressed_img,
+            before_length,
+            after_length,
+        }
+    }
+    /// Returns the compressed image as a `img_parts_jpeg::Jpeg`.
+    fn result(self) -> img_parts::jpeg::Jpeg {
+        self.compressed_img
+    }
+    /// Pretty formatting for original image size.
+    fn format_size_before(&self) -> colored::ColoredString {
+        let in_mbytes = (self.before_length) as f64 / 1_000_000.0;
+        let as_string = format!("{:.2} MB", in_mbytes);
+        as_string.bright_red()
+    }
+    /// Pretty formatting for compressed image size.
+    fn format_size_after(&self) -> colored::ColoredString {
+        let in_mbytes = (self.after_length) as f64 / 1_000_000.0;
+        let as_string = format!("{:.2} MB", in_mbytes);
+        as_string.green()
     }
 }

@@ -27,7 +27,7 @@ fn spawn_workers(args: TaskArgs) -> io::Result<()> {
     .send_to_threads();
     // Makes sure all entries in the queue are consumed.
     while let Steal::Success(direntry) = main_stealer.steal() {
-        Compress::new(direntry, dir_name.clone(), quality, 0).do_work();
+        Compress::new(direntry, dir_name.clone(), quality).do_work();
     }
     match handles {
         None => {
