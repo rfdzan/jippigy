@@ -2,6 +2,8 @@
 //! A multi-threaded image compression tool, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 use clap::Parser;
 use crossbeam::deque::{Steal, Stealer, Worker};
+use image::EncodableLayout;
+use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
 use std::env::current_dir;
 use std::io;
 use std::path::Path;
@@ -221,9 +223,18 @@ impl Compress {
         let path_as_ref = p.as_ref();
         let filename = path_as_ref.file_name().unwrap_or_default();
         let read = std::fs::read(path_as_ref)?;
+
         let image: image::RgbImage = decompress_image(&read)?;
         let jpeg_data = compress_image(&image, q, Sub2x2)?;
-        std::fs::write(dir.join(filename), jpeg_data)?;
+
+        let jpeg_data_as_bytes = jpeg_data.as_bytes().to_owned();
+        let original_img_parts = Jpeg::from_bytes(read.into()).unwrap();
+        let exif = original_img_parts.exif().unwrap_or_default();
+        let icc_profile = original_img_parts.icc_profile().unwrap_or_default();
+        let mut compressed_img_part = Jpeg::from_bytes(jpeg_data_as_bytes.into()).unwrap();
+        compressed_img_part.set_exif(exif.into());
+        compressed_img_part.set_icc_profile(icc_profile.into());
+        std::fs::write(dir.join(filename), compressed_img_part.encoder().bytes())?;
         let success_msg = format!(
             "done: {} (worker {})",
             path_as_ref
