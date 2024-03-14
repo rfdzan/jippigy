@@ -221,28 +221,52 @@ impl Compress {
         T: AsRef<Path>,
     {
         let path_as_ref = p.as_ref();
-        let filename = path_as_ref.file_name().unwrap_or_default();
-        let read = std::fs::read(path_as_ref)?;
-
-        let image: image::RgbImage = decompress_image(&read)?;
-        let jpeg_data = compress_image(&image, q, Sub2x2)?;
-
-        let jpeg_data_as_bytes = jpeg_data.as_bytes().to_owned();
-        let original_img_parts = Jpeg::from_bytes(read.into()).unwrap();
+        let filename = path_as_ref
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let with_exif_preserved = CompressImage::new(path_as_ref, q)
+            .read()?
+            .compress()?
+            .preserve_exif()?;
+        std::fs::write(dir.join(&filename), with_exif_preserved.encoder().bytes())?;
+        let success_msg = format!("done: {filename} (worker {worker})");
+        Ok(success_msg)
+    }
+}
+struct CompressImage<'a> {
+    p: &'a Path,
+    q: i32,
+    original_bytes: Vec<u8>,
+    compressed_bytes: Vec<u8>,
+}
+impl<'a> CompressImage<'a> {
+    fn new(p: &'a Path, q: i32) -> Self {
+        Self {
+            p,
+            q,
+            original_bytes: Vec::new(),
+            compressed_bytes: Vec::new(),
+        }
+    }
+    fn read(mut self) -> io::Result<Self> {
+        self.original_bytes = std::fs::read(self.p)?;
+        Ok(self)
+    }
+    fn compress(mut self) -> anyhow::Result<Self> {
+        let image: image::RgbImage = decompress_image(&self.original_bytes.as_bytes())?;
+        let jpeg_data = compress_image(&image, self.q, Sub2x2)?;
+        self.compressed_bytes = jpeg_data.as_bytes().to_owned();
+        Ok(self)
+    }
+    fn preserve_exif(self) -> anyhow::Result<Jpeg> {
+        let original_img_parts = Jpeg::from_bytes(self.original_bytes.into())?;
         let exif = original_img_parts.exif().unwrap_or_default();
         let icc_profile = original_img_parts.icc_profile().unwrap_or_default();
-        let mut compressed_img_part = Jpeg::from_bytes(jpeg_data_as_bytes.into()).unwrap();
+        let mut compressed_img_part = Jpeg::from_bytes(self.compressed_bytes.into()).unwrap();
         compressed_img_part.set_exif(exif.into());
         compressed_img_part.set_icc_profile(icc_profile.into());
-        std::fs::write(dir.join(filename), compressed_img_part.encoder().bytes())?;
-        let success_msg = format!(
-            "done: {} (worker {})",
-            path_as_ref
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy(),
-            worker
-        );
-        Ok(success_msg)
+        Ok(compressed_img_part)
     }
 }
