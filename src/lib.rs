@@ -278,31 +278,37 @@ impl<'a> CompressImage<'a> {
         ))
     }
 }
+/// Contains the result of compressed image
 struct CompressionResult {
     compressed_img: img_parts::jpeg::Jpeg,
     before_length: usize,
     after_length: usize,
 }
 impl CompressionResult {
+    /// Store the result of compressed image,
+    /// along with additional information.
     fn store(
         compressed_img: img_parts::jpeg::Jpeg,
         before_length: usize,
         after_length: usize,
     ) -> Self {
-        CompressionResult {
+        Self {
             compressed_img,
             before_length,
             after_length,
         }
     }
+    /// Returns the compressed image as a `img_parts_jpeg::Jpeg`.
     fn result(self) -> img_parts::jpeg::Jpeg {
         self.compressed_img
     }
+    /// Pretty formatting for original image size.
     fn format_size_before(&self) -> colored::ColoredString {
         let in_mbytes = (self.before_length) as f64 / 1_000_000.0;
         let as_string = format!("{:.2} MB", in_mbytes);
         as_string.bright_red()
     }
+    /// Pretty formatting for compressed image size.
     fn format_size_after(&self) -> colored::ColoredString {
         let in_mbytes = (self.after_length) as f64 / 1_000_000.0;
         let as_string = format!("{:.2} MB", in_mbytes);
