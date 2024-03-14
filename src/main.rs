@@ -29,8 +29,18 @@ fn spawn_workers(args: TaskArgs) -> io::Result<()> {
     while let Steal::Success(direntry) = main_stealer.steal() {
         Compress::new(direntry, dir_name.clone(), quality, 0).do_work();
     }
-    for h in handles.into_iter() {
-        h.join().unwrap();
+    match handles {
+        None => {
+            eprintln!("BUG: number of workers pushed to and popped from is not the same.");
+            std::process::exit(1);
+        }
+        Some(list_of_handles) => {
+            for h in list_of_handles.into_iter() {
+                if let Err(e) = h.join() {
+                    eprintln!("{e:?}");
+                }
+            }
+        }
     }
     Ok(())
 }

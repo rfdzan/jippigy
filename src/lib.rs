@@ -68,17 +68,15 @@ impl Tasks {
     }
     /// Attempts to calculate the upper limit of the amount of work each thread should take.
     pub fn get_task_amount(&self) -> usize {
-        let task_amount = {
+        {
             if self.device_num > 1 {
-                let as_f64 =
-                    self.queue.len() as f64 / f64::try_from(self.device_num).unwrap().ceil() + 1.0;
+                let as_f64 = self.queue.len() as f64 / f64::from(self.device_num).ceil() + 1.0;
                 as_f64 as usize
             } else {
                 eprintln!("Minimum amount of device: 2");
                 std::process::exit(1)
             }
-        };
-        task_amount
+        }
     }
     fn get_tasks(cur_dir: &PathBuf) -> io::Result<Worker<Option<DirEntry>>> {
         let read_dir = std::fs::read_dir(cur_dir)?;
@@ -88,10 +86,12 @@ impl Tasks {
             .collect::<Vec<_>>();
         Ok(worker)
     }
-    fn create_output_dir(cur_dir: &PathBuf, output_dir: &str) -> PathBuf {
+    fn create_output_dir(cur_dir: &Path, output_dir: &str) -> PathBuf {
         let output_path = PathBuf::from(output_dir);
         if !cur_dir.join(output_path.as_path()).exists() {
-            std::fs::create_dir(output_dir).expect("Cannot create output dir {output_dir}\n");
+            if let Err(e) = std::fs::create_dir(output_dir) {
+                eprintln!("Cannot create output dir {output_dir}\n{e}")
+            }
         }
         output_path
     }
@@ -123,7 +123,7 @@ impl<'a> TaskWorker<'a> {
     }
     /// Distribute work among threads.
     /// This method consumes the TaskWorker and returns a vector containing the handles to each thread.
-    pub fn send_to_threads(self) -> Vec<thread::JoinHandle<()>> {
+    pub fn send_to_threads(self) -> Option<Vec<thread::JoinHandle<()>>> {
         // self.device num is u8, so this conversion must always succeed.
         let device_num_as_usize =
             usize::try_from(self.device_num).expect("BUG: this conversion must always succeed");
@@ -135,12 +135,12 @@ impl<'a> TaskWorker<'a> {
             let _thread_stealer = self
                 .stealer
                 .steal_batch_with_limit(&thread_worker, self.task_amount);
-            let _push_stealer = stealers.push(thread_worker.stealer());
-            let _push_worker = workers.push(thread_worker);
+            stealers.push(thread_worker.stealer());
+            workers.push(thread_worker);
         }
         let to_steal_from = Arc::new(Mutex::new(stealers));
         for id in 0..self.device_num {
-            let thread_worker = workers.pop().unwrap();
+            let thread_worker = workers.pop()?;
             let local_stealer = Arc::clone(&to_steal_from);
             let thread_dir_name = self.dir_name.clone();
             let handle = thread::spawn(move || {
@@ -177,7 +177,7 @@ impl<'a> TaskWorker<'a> {
             });
             handles.push(handle);
         }
-        return handles;
+        Some(handles)
     }
 }
 /// Compression-related work.
@@ -255,7 +255,7 @@ impl<'a> CompressImage<'a> {
         Ok(self)
     }
     fn compress(mut self) -> anyhow::Result<Self> {
-        let image: image::RgbImage = decompress_image(&self.original_bytes.as_bytes())?;
+        let image: image::RgbImage = decompress_image(self.original_bytes.as_bytes())?;
         let jpeg_data = compress_image(&image, self.q, Sub2x2)?;
         self.compressed_bytes = jpeg_data.as_bytes().to_owned();
         Ok(self)
@@ -264,7 +264,7 @@ impl<'a> CompressImage<'a> {
         let original_img_parts = Jpeg::from_bytes(self.original_bytes.into())?;
         let exif = original_img_parts.exif().unwrap_or_default();
         let icc_profile = original_img_parts.icc_profile().unwrap_or_default();
-        let mut compressed_img_part = Jpeg::from_bytes(self.compressed_bytes.into()).unwrap();
+        let mut compressed_img_part = Jpeg::from_bytes(self.compressed_bytes.into())?;
         compressed_img_part.set_exif(exif.into());
         compressed_img_part.set_icc_profile(icc_profile.into());
         Ok(compressed_img_part)
