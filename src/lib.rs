@@ -232,6 +232,7 @@ impl Compress {
         Ok(success_msg)
     }
 }
+/// Compress an image, retaining its bytes before and after compression.
 struct CompressImage<'a> {
     p: &'a Path,
     q: i32,
@@ -239,6 +240,7 @@ struct CompressImage<'a> {
     compressed_bytes: Vec<u8>,
 }
 impl<'a> CompressImage<'a> {
+    /// Creates a new image to be compressed.
     fn new(p: &'a Path, q: i32) -> Self {
         Self {
             p,
@@ -247,16 +249,22 @@ impl<'a> CompressImage<'a> {
             compressed_bytes: Vec::new(),
         }
     }
+    /// Reads image file into Vec<u8>, returning Self.
     fn read(mut self) -> io::Result<Self> {
         self.original_bytes = std::fs::read(self.p)?;
         Ok(self)
     }
+    /// Compress image file and retains the compressed bytes, returning Self.
     fn compress(mut self) -> anyhow::Result<Self> {
         let image: image::RgbImage = decompress_image(self.original_bytes.as_bytes())?;
         let jpeg_data = compress_image(&image, self.q, Sub2x2)?;
         self.compressed_bytes = jpeg_data.as_bytes().to_owned();
         Ok(self)
     }
+    /// Using the bytes retained before and after compression,
+    /// Parse EXIF information from the original bytes and write it
+    /// into the compressed bytes. Returns a `img_parts::jpeg::Jpeg`
+    /// which we can convert later to a Byte.
     fn preserve_exif(self) -> anyhow::Result<Jpeg> {
         let original_img_parts = Jpeg::from_bytes(self.original_bytes.into())?;
         let exif = original_img_parts.exif().unwrap_or_default();
