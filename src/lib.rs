@@ -46,9 +46,9 @@ pub struct Tasks {
 }
 impl Tasks {
     /// Creates a new Task.
-    pub fn create(args: &TaskArgs) -> io::Result<Tasks> {
+    pub fn create(args: &TaskArgs) -> io::Result<Self> {
         let cur_dir = current_dir()?;
-        Ok(Tasks {
+        Ok(Self {
             queue: Tasks::get_tasks(&cur_dir)?,
             device_num: args.device,
             output_dir: Tasks::create_output_dir(&cur_dir, args.output_dir.as_str()),
