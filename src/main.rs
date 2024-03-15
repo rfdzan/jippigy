@@ -1,6 +1,6 @@
 use clap::Parser;
 use crossbeam::deque::Steal;
-use smoljpg::{Compress, TaskArgs, TaskWorker, Tasks};
+use smoljpg::{compress::Compress, task::Tasks, threads::TaskWorker, TaskArgs};
 use std::io;
 fn main() {
     let args = TaskArgs::parse();
