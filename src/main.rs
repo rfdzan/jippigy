@@ -1,6 +1,5 @@
 use clap::Parser;
-use crossbeam::deque::Steal;
-use smoljpg::{compress::Compress, task::Tasks, threads::TaskWorker, TaskArgs};
+use smoljpg::{task::Tasks, threads::TaskWorker, TaskArgs};
 use std::io;
 fn main() {
     let args = TaskArgs::parse();
@@ -16,19 +15,15 @@ fn spawn_workers(args: TaskArgs) -> io::Result<()> {
     let task_amount = create_task.get_task_amount();
     let quality = args.get_quality();
     let main_worker = create_task.get_main_worker();
-    let main_stealer = main_worker.stealer();
     let handles = TaskWorker::new(
         device_num,
         quality,
         dir_name.clone(),
-        &main_stealer,
+        main_worker,
         task_amount,
     )
+    .distribute_work()
     .send_to_threads();
-    // Makes sure all entries in the queue are consumed.
-    while let Steal::Success(direntry) = main_stealer.steal() {
-        Compress::new(direntry, dir_name.clone(), quality).do_work();
-    }
     match handles {
         None => {
             eprintln!("BUG: number of workers pushed to and popped from is not the same.");

@@ -27,7 +27,7 @@ impl Tasks {
     }
     /// Returns the specified amount of worker threads to be used.
     pub fn get_device(&self) -> u8 {
-        self.device_num - 1
+        self.device_num
     }
     /// Returns the output directory
     pub fn get_output_dir(&self) -> PathBuf {
