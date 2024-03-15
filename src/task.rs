@@ -1,7 +1,5 @@
 use crate::TaskArgs;
-use crossbeam::deque::Worker;
 use std::env::current_dir;
-use std::fs::DirEntry;
 use std::fs::ReadDir;
 use std::io;
 use std::path::Path;
@@ -35,26 +33,9 @@ impl Tasks {
         self.output_dir.clone()
     }
     /// Attempts to calculate the upper limit of the amount of work each thread should take.
-    pub fn get_task_amount(&self) /*usize*/
-    {
-        // {
-        //     if self.device_num > 1 {
-        //         let as_f64 = self.queue.len() as f64 / f64::from(self.device_num).ceil() + 1.0;
-        //         as_f64 as usize
-        //     } else {
-        //         eprintln!("Minimum amount of device: 2");
-        //         std::process::exit(1)
-        //     }
-        // }
-    }
     fn get_tasks(cur_dir: &PathBuf) -> io::Result<ReadDir> /*io::Result<Worker<Option<DirEntry>>>*/
     {
-        let read_dir = std::fs::read_dir(cur_dir)?;
-        // let worker = Worker::new_fifo();
-        // let _tasks = read_dir
-        //     .map(|direntry| worker.push(direntry.ok()))
-        //     .collect::<Vec<_>>();
-        Ok(read_dir)
+        Ok(std::fs::read_dir(cur_dir)?)
     }
     fn create_output_dir(cur_dir: &Path, output_dir: &str) -> PathBuf {
         let output_path = PathBuf::from(output_dir);

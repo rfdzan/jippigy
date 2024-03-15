@@ -1,5 +1,5 @@
 use crate::compress::Compress;
-use crossbeam::deque::{Injector, Steal, Stealer, Worker};
+use crossbeam::deque::{Steal, Stealer};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time;
@@ -10,9 +10,6 @@ pub struct TaskWorker {
     quality: i32,
     dir_name: PathBuf,
     stealers: Vec<Stealer<Option<DirEntry>>>,
-    task_amount: usize,
-    thread_stealers: Vec<Stealer<Option<DirEntry>>>,
-    thread_workers: Vec<Worker<Option<DirEntry>>>,
 }
 impl TaskWorker {
     /// Creates a new TaskWorker.
@@ -21,54 +18,29 @@ impl TaskWorker {
         quality: i32,
         dir_name: PathBuf,
         stealers: Vec<Stealer<Option<DirEntry>>>,
-        task_amount: usize,
     ) -> Self {
         Self {
             device_num,
             quality,
             dir_name,
             stealers,
-            task_amount,
-            thread_stealers: Vec::new(),
-            thread_workers: Vec::new(),
         }
     }
-    /// TODO: doc
-    // pub fn distribute_work(mut self) -> Self {
-    //     for _ in 0..self.device_num {
-    //         let thread_worker = Worker::new_fifo();
-    //         let _thread_stealer = self
-    //             .main_worker
-    //             .stealer()
-    //             .steal_batch_with_limit(&thread_worker, self.task_amount);
-    //         self.thread_stealers.push(thread_worker.stealer());
-    //         self.thread_workers.push(thread_worker);
-    //     }
-    //     self.thread_stealers.push(self.main_worker.stealer());
-    //     self
-    // }
     /// Distribute work among threads.
     /// This method consumes the TaskWorker and returns a vector containing the handles to each thread.
-    pub fn send_to_threads(self) -> Option<Vec<thread::JoinHandle<()>>> {
+    pub fn send_to_threads(self) -> Vec<thread::JoinHandle<()>> {
         let mut handles = Vec::with_capacity(usize::from(self.device_num));
         let to_steal_from = Arc::new(Mutex::new(self.stealers));
         for _ in 0..self.device_num {
-            // let thread_worker = self.thread_workers.pop()?;
             let local_stealer = Arc::clone(&to_steal_from);
             let thread_dir_name = self.dir_name.clone();
             let handle = thread::spawn(move || {
-                thread::sleep(time::Duration::from_millis(50));
+                // wait a bit for the main worker to have something in it.
+                thread::sleep(time::Duration::from_millis(1));
                 let mut queues_empty = Vec::with_capacity(usize::from(self.device_num));
                 loop {
-                    println!("this runs");
-                    // if let Steal::Success(direntry) = self.global_injector.steal() {
-                    //     Compress::new(direntry, thread_dir_name.clone(), self.quality).do_work();
-                    //     continue;
-                    // }
-                    // If the local worker is empty, steal work from other threads.
                     let gain_lock = local_stealer.try_lock().ok();
                     let Some(lock_list_of_stealers) = gain_lock else {
-                        println!("contending for lock");
                         continue;
                     };
                     let mut temp_stealer = Vec::with_capacity(1);
@@ -105,6 +77,6 @@ impl TaskWorker {
             });
             handles.push(handle);
         }
-        Some(handles)
+        handles
     }
 }
