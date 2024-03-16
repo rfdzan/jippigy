@@ -16,14 +16,25 @@ pub struct TaskArgs {
     /// The output directory of compressed images.
     #[arg(default_value_t = format!("compressed"))]
     output_dir: String,
+    #[arg(short, long, default_value_t = String::new())]
+    single: String,
     /// The number of worker threads used.
     #[arg(short, default_value_t = 4)]
     device: u8,
 }
 impl TaskArgs {
     /// Returns the quality after compression.
-    pub fn get_quality(&self) -> i32 {
-        self.quality.into()
+    pub fn get_quality(&self) -> u8 {
+        self.quality
+    }
+    pub fn is_single(&self) -> bool {
+        if self.single.trim().is_empty() {
+            return false;
+        }
+        true
+    }
+    pub fn get_single(&self) -> String {
+        self.single.clone()
     }
     /// Checks command-line input.
     pub fn verify(&self) {

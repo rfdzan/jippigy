@@ -20,12 +20,12 @@ impl Compress {
             quality,
         }
     }
-    /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
+    /// Start compression work.
     pub fn do_work(self) {
         let Some(val_direntry) = self.direntry else {
             return;
         };
-        match Compress::compress(val_direntry.path(), self.dir_name, self.quality) {
+        match Compress::compress(val_direntry.path(), self.dir_name, self.quality, None) {
             Err(e) => {
                 eprintln!("{e}");
             }
@@ -34,7 +34,13 @@ impl Compress {
             }
         };
     }
-    fn compress<T>(p: T, dir: PathBuf, q: u8) -> anyhow::Result<String>
+    /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
+    pub fn compress<T>(
+        p: T,
+        dir: PathBuf,
+        q: u8,
+        custom_name: Option<String>,
+    ) -> anyhow::Result<String>
     where
         T: AsRef<Path>,
     {
@@ -50,11 +56,17 @@ impl Compress {
             .preserve_exif()?;
         let before_size = with_exif_preserved.format_size_before();
         let after_size = with_exif_preserved.format_size_after();
+        let name = {
+            match custom_name {
+                None => filename,
+                Some(n) => n + filename.as_str(),
+            }
+        };
         std::fs::write(
-            dir.join(&filename),
+            dir.join(name.as_str()),
             with_exif_preserved.result().encoder().bytes(),
         )?;
-        let success_msg = format!("{filename} before: {before_size} after: {after_size}");
+        let success_msg = format!("{name} before: {before_size} after: {after_size}");
         Ok(success_msg)
     }
 }

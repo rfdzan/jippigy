@@ -1,13 +1,48 @@
 use clap::Parser;
+use colored::Colorize;
 use crossbeam::deque::Worker;
-use smoljpg::{task::Tasks, threads::TaskWorker, TaskArgs};
+use smoljpg::{compress::Compress, task::Tasks, threads::TaskWorker, TaskArgs};
 use std::io;
 fn main() {
     let args = TaskArgs::parse();
     args.verify();
-    if let Err(e) = spawn_workers(args) {
-        eprintln!("{e}");
+    if !args.is_single() {
+        if let Err(e) = spawn_workers(args) {
+            eprintln!("{e}");
+        }
+    } else {
+        if let Err(e) = single(args) {
+            eprintln!("{e}");
+        }
     }
+}
+fn single(args: TaskArgs) -> io::Result<()> {
+    let cur_dir = std::env::current_dir()?;
+    let filename = args.get_single();
+    let full_path = cur_dir.join(filename);
+    if !full_path.exists() {
+        eprintln!(
+            "File does not exist: {}. Maybe there's a {}?\nInclude the extension {} as well.",
+            full_path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+                .red(),
+            "typo".to_string().yellow(),
+            ".jpg/.JPG/.jpeg/.JPEG".to_string().green()
+        );
+    }
+    match Compress::compress(
+        full_path,
+        cur_dir,
+        args.get_quality(),
+        Some("smoljpg_".to_string()),
+    ) {
+        Err(e) => eprintln!("{e}"),
+        Ok(msg) => println!("{msg}"),
+    }
+    Ok(())
 }
 fn spawn_workers(args: TaskArgs) -> io::Result<()> {
     let create_task = Tasks::create(&args)?;
