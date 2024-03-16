@@ -5,15 +5,17 @@ use std::io;
 fn main() {
     let args = TaskArgs::parse();
     args.verify();
-    if !args.is_single() {
-        if let Err(e) = spawn_workers(args) {
+    if args.is_single() {
+        if let Err(e) = single(args) {
             eprintln!("{e}");
         }
-    } else {
-        if let Err(e) = Single::new(args).do_single() {
-            eprintln!("{e}");
-        }
+    } else if let Err(e) = spawn_workers(args) {
+        eprintln!("{e}");
     }
+}
+fn single(args: TaskArgs) -> io::Result<()> {
+    Single::new(args).prep()?.exists().compress();
+    Ok(())
 }
 fn spawn_workers(args: TaskArgs) -> io::Result<()> {
     let create_task = Tasks::create(&args)?;

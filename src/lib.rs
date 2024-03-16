@@ -3,6 +3,7 @@
 use clap::Parser;
 /// Compression module.
 pub mod compress;
+/// Single-image tasks.
 pub mod single;
 /// Obtaining work from parent directory.
 pub mod task;
@@ -28,12 +29,14 @@ impl TaskArgs {
     pub fn get_quality(&self) -> u8 {
         self.quality
     }
+    /// Check if the task given is single image.
     pub fn is_single(&self) -> bool {
         if self.single.trim().is_empty() {
             return false;
         }
         true
     }
+    /// Returns the single image file name provided.
     pub fn get_single(&self) -> String {
         self.single.clone()
     }
