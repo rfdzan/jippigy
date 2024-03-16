@@ -3,6 +3,8 @@
 use clap::Parser;
 /// Compression module.
 pub mod compress;
+/// Single-image tasks.
+pub mod single;
 /// Obtaining work from parent directory.
 pub mod task;
 /// Parallelization module.
@@ -16,14 +18,27 @@ pub struct TaskArgs {
     /// The output directory of compressed images.
     #[arg(default_value_t = format!("compressed"))]
     output_dir: String,
+    #[arg(short, long, default_value_t = String::new())]
+    single: String,
     /// The number of worker threads used.
     #[arg(short, default_value_t = 4)]
     device: u8,
 }
 impl TaskArgs {
     /// Returns the quality after compression.
-    pub fn get_quality(&self) -> i32 {
-        self.quality.into()
+    pub fn get_quality(&self) -> u8 {
+        self.quality
+    }
+    /// Check if the task given is single image.
+    pub fn is_single(&self) -> bool {
+        if self.single.trim().is_empty() {
+            return false;
+        }
+        true
+    }
+    /// Returns the single image file name provided.
+    pub fn get_single(&self) -> String {
+        self.single.clone()
     }
     /// Checks command-line input.
     pub fn verify(&self) {
