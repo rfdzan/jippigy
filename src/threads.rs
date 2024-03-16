@@ -7,7 +7,7 @@ use std::{fs::DirEntry, path::PathBuf};
 /// Worker threads.
 pub struct TaskWorker {
     device_num: u8,
-    quality: i32,
+    quality: u8,
     dir_name: PathBuf,
     stealers: Vec<Stealer<Option<DirEntry>>>,
 }
@@ -15,7 +15,7 @@ impl TaskWorker {
     /// Creates a new TaskWorker.
     pub fn new(
         device_num: u8,
-        quality: i32,
+        quality: u8,
         dir_name: PathBuf,
         stealers: Vec<Stealer<Option<DirEntry>>>,
     ) -> Self {

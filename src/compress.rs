@@ -9,11 +9,11 @@ use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 pub struct Compress {
     direntry: Option<DirEntry>,
     dir_name: PathBuf,
-    quality: i32,
+    quality: u8,
 }
 impl Compress {
     /// Creates a new compression task.
-    pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: i32) -> Self {
+    pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: u8) -> Self {
         Self {
             direntry,
             dir_name,
@@ -34,7 +34,7 @@ impl Compress {
             }
         };
     }
-    fn compress<T>(p: T, dir: PathBuf, q: i32) -> anyhow::Result<String>
+    fn compress<T>(p: T, dir: PathBuf, q: u8) -> anyhow::Result<String>
     where
         T: AsRef<Path>,
     {
@@ -61,13 +61,13 @@ impl Compress {
 /// Compress an image, retaining its bytes before and after compression.
 struct CompressImage<'a> {
     p: &'a Path,
-    q: i32,
+    q: u8,
     original_bytes: Vec<u8>,
     compressed_bytes: Vec<u8>,
 }
 impl<'a> CompressImage<'a> {
     /// Creates a new image to be compressed.
-    fn new(p: &'a Path, q: i32) -> Self {
+    fn new(p: &'a Path, q: u8) -> Self {
         Self {
             p,
             q,
@@ -83,7 +83,7 @@ impl<'a> CompressImage<'a> {
     /// Compress image file and retains the compressed bytes, returning Self.
     fn compress(mut self) -> anyhow::Result<Self> {
         let image: image::RgbImage = decompress_image(self.original_bytes.as_bytes())?;
-        let jpeg_data = compress_image(&image, self.q, Sub2x2)?;
+        let jpeg_data = compress_image(&image, i32::from(self.q), Sub2x2)?;
         self.compressed_bytes = jpeg_data.as_bytes().to_owned();
         Ok(self)
     }

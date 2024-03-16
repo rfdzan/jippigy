@@ -19,7 +19,7 @@ fn spawn_workers(args: TaskArgs) -> io::Result<()> {
     }
     let handles = TaskWorker::new(
         create_task.get_device(),
-        args.get_quality(),
+        create_task.get_quality(),
         create_task.get_output_dir(),
         stealers,
     )
