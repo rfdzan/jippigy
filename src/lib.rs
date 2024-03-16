@@ -3,6 +3,7 @@
 use clap::Parser;
 /// Compression module.
 pub mod compress;
+pub mod single;
 /// Obtaining work from parent directory.
 pub mod task;
 /// Parallelization module.
