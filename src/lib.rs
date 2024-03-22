@@ -10,14 +10,15 @@ pub mod task;
 /// Parallelization module.
 pub mod threads;
 #[derive(Parser, Debug)]
-/// Get arguments from the terminal.
+/// A multi-threaded JPG compression tool.
 pub struct TaskArgs {
     /// Ranges from 1 (smallest file, worst quality) to 100 (biggest file, best quality).
     #[arg(default_value_t = 50)]
     quality: u8,
     /// The output directory of compressed images.
-    #[arg(default_value_t = format!("compressed"))]
+    #[arg(short, default_value_t = format!("compressed"))]
     output_dir: String,
+    /// Single image compression.
     #[arg(short, long, default_value_t = String::new())]
     single: String,
     /// The number of worker threads used.
