@@ -18,8 +18,13 @@ impl Single {
             default_prefix: "smoljpg_".to_string(),
         }
     }
+    /// Compress a single image.
+    pub fn do_single(self) -> io::Result<()> {
+        self.prep()?.exists().compress();
+        Ok(())
+    }
     /// Check whether or not image exists.
-    pub fn exists(self) -> Self {
+    fn exists(self) -> Self {
         if !self.full_path.exists() {
             eprintln!(
                 "File does not exist: {}. Maybe there's a {}?\nInclude the extension {} as well.",
@@ -37,7 +42,7 @@ impl Single {
         self
     }
     /// Compress a single image.
-    pub fn compress(self) {
+    fn compress(self) {
         match Compress::compress(
             self.full_path,
             self.cur_dir,
@@ -49,7 +54,7 @@ impl Single {
         }
     }
     /// Get image information.
-    pub fn prep(mut self) -> io::Result<Self> {
+    fn prep(mut self) -> io::Result<Self> {
         let cur_dir = env::current_dir()?;
         let filename = self.args.get_single();
         let full_path = cur_dir.join(filename);
