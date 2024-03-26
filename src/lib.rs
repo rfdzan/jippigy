@@ -1,6 +1,7 @@
 #![warn(missing_docs)]
 //! A multi-threaded image compression tool, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 use clap::Parser;
+use std::{env, path::PathBuf};
 /// Compression module.
 pub mod compress;
 /// Single-image tasks.
@@ -28,6 +29,7 @@ impl TaskArgs {
     pub fn get_quality(&self) -> u8 {
         self.quality
     }
+    /// Returns number of worker threads
     pub fn get_device(&self) -> u8 {
         self.device
     }
@@ -38,9 +40,16 @@ impl TaskArgs {
         }
         true
     }
-    /// Returns the single image file name provided.
-    pub fn get_single(&self) -> String {
-        self.single.clone()
+    /// Returns the single image path provided.
+    pub fn get_single(&self) -> PathBuf {
+        let path = match env::current_dir() {
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+            Ok(p) => p,
+        };
+        path.join(self.single.as_str())
     }
     /// Checks command-line input.
     pub fn verify(&self) {
