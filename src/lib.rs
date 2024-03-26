@@ -5,8 +5,6 @@ use clap::Parser;
 pub mod compress;
 /// Single-image tasks.
 pub mod single;
-/// Obtaining work from parent directory.
-pub mod task;
 /// Parallelization module.
 pub mod threads;
 #[derive(Parser, Debug)]
@@ -29,6 +27,9 @@ impl TaskArgs {
     /// Returns the quality after compression.
     pub fn get_quality(&self) -> u8 {
         self.quality
+    }
+    pub fn get_device(&self) -> u8 {
+        self.device
     }
     /// Check if the task given is single image.
     pub fn is_single(&self) -> bool {
