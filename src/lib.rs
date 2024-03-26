@@ -40,6 +40,9 @@ impl TaskArgs {
         }
         true
     }
+    pub fn get_output_dir(&self) -> String {
+        self.output_dir.clone()
+    }
     /// Returns the single image path provided.
     pub fn get_single(&self) -> PathBuf {
         let path = match env::current_dir() {

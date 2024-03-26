@@ -8,78 +8,86 @@ use std::fs::ReadDir;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use std::thread;
 use std::time;
 /// Obtain tasks from the current working directory.
-pub struct Tasks {
+pub struct Tasks<T: AsRef<Path>> {
     queue: ReadDir,
     device_num: u8,
     quality: u8,
-    output_dir: PathBuf,
+    output_dir: T,
 }
-impl Tasks {
+impl<T: AsRef<Path>> Tasks<T> {
     /// Creates a new Task.
-    fn create(args: &TaskArgs) -> io::Result<Self> {
-        let cur_dir = current_dir()?;
+    fn create(queue: ReadDir, device_num: u8, quality: u8, output_dir: T) -> io::Result<Self>
+    where
+        T: AsRef<Path>,
+    {
         Ok(Self {
-            queue: Tasks::get_tasks(&cur_dir)?,
-            device_num: args.device,
-            quality: args.quality,
-            output_dir: Tasks::create_output_dir(&cur_dir, args.output_dir.as_str()),
+            queue,
+            device_num,
+            quality,
+            output_dir,
         })
     }
     /// Returns a work-stealing queue from which worker threads are going to steal.
     fn get_main_worker(self) -> ReadDir {
         self.queue
     }
-    /// Returns the specified desired quality.
-    fn get_quality(&self) -> u8 {
-        self.quality
-    }
     /// Returns the specified amount of worker threads to be used.
     fn get_device(&self) -> u8 {
         self.device_num
     }
-    /// Returns the output directory
-    fn get_output_dir(&self) -> PathBuf {
-        self.output_dir.clone()
-    }
-    fn get_tasks(cur_dir: &PathBuf) -> io::Result<ReadDir> {
-        std::fs::read_dir(cur_dir)
-    }
-    fn create_output_dir(cur_dir: &Path, output_dir: &str) -> PathBuf {
-        let output_path = PathBuf::from(output_dir);
-        if !cur_dir.join(output_path.as_path()).exists() {
-            if let Err(e) = std::fs::create_dir(output_dir) {
-                eprintln!("Cannot create output dir {output_dir}\n{e}")
+    fn create_output_dir(&self) -> PathBuf {
+        if !self.output_dir.as_ref().exists() {
+            if let Err(e) = std::fs::create_dir(self.output_dir.as_ref()) {
+                eprintln!(
+                    "Cannot create output dir {}\n{e}",
+                    self.output_dir
+                        .as_ref()
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
+                )
             }
         }
-        output_path
+        self.output_dir.as_ref().to_path_buf()
     }
 }
 /// Worker threads.
-pub struct TaskWorker {
+pub struct TaskWorker<T> {
     device_num: u8,
     quality: u8,
-    dir_name: PathBuf,
+    image_dir: T,
+    output_dir: T,
     stealers: Vec<Stealer<Option<DirEntry>>>,
 }
-impl TaskWorker {
+impl<T: AsRef<Path> + 'static> TaskWorker<T> {
     /// Creates a new TaskWorker.
-    pub fn new(device_num: u8, quality: u8, dir_name: PathBuf) -> Self {
+    pub fn new(image_dir: T, output_dir: T, device_num: u8, quality: u8) -> Self
+    where
+        T: AsRef<Path> + 'static,
+    {
         Self {
+            image_dir,
+            output_dir,
             device_num,
             quality,
-            dir_name,
             stealers: Vec::with_capacity(usize::from(device_num)),
         }
     }
     /// Compress images in parallel.
-    pub fn do_bulk(mut self, args: TaskArgs) -> io::Result<()> {
-        let create_task = Tasks::create(&args)?;
-        let device_num = create_task.get_device();
+    pub fn do_bulk(mut self) -> io::Result<()> {
+        let create_task = Tasks::create(
+            std::fs::read_dir(self.image_dir.as_ref()).unwrap(),
+            self.device_num,
+            self.quality,
+            self.output_dir.as_ref().to_path_buf().clone(),
+        )?;
+        create_task.create_output_dir();
         let main_worker = Worker::new_fifo();
-        for _ in 0..device_num {
+        for _ in 0..self.device_num {
             self.stealers.push(main_worker.stealer());
         }
         let handles = self.send_to_threads();
@@ -98,7 +106,7 @@ impl TaskWorker {
         let to_steal_from = Arc::new(Mutex::new(self.stealers));
         for _ in 0..self.device_num {
             let local_stealer = Arc::clone(&to_steal_from);
-            let thread_dir_name = self.dir_name.clone();
+            let thread_output_dir = self.output_dir.as_ref().to_path_buf().clone();
             let handle = thread::spawn(move || {
                 let mut are_queues_empty = Vec::with_capacity(usize::from(self.device_num));
                 let mut payload = Vec::with_capacity(1);
@@ -129,7 +137,7 @@ impl TaskWorker {
                         // lock is no longer needed past this point
                     }
                     if let Some(direntry) = payload.pop() {
-                        Compress::new(direntry, thread_dir_name.clone(), self.quality).do_work();
+                        Compress::new(direntry, thread_output_dir.clone(), self.quality).do_work();
                     }
                     // if all stealers are empty, exit the loop.
                     if are_queues_empty.iter().all(|val| val == &true) {

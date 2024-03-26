@@ -6,17 +6,20 @@ use std::io;
 use std::path::{Path, PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 /// Compression-related work.
-pub struct Compress {
+pub struct Compress<T: AsRef<Path>> {
     direntry: Option<DirEntry>,
-    dir_name: PathBuf,
+    output_dir: T,
     quality: u8,
 }
-impl Compress {
+impl<T: AsRef<Path>> Compress<T> {
     /// Creates a new compression task.
-    pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: u8) -> Self {
+    pub fn new(direntry: Option<DirEntry>, output_dir: T, quality: u8) -> Self
+    where
+        T: AsRef<Path>,
+    {
         Self {
             direntry,
-            dir_name,
+            output_dir,
             quality,
         }
     }
@@ -25,7 +28,12 @@ impl Compress {
         let Some(val_direntry) = self.direntry else {
             return;
         };
-        match Compress::compress(val_direntry.path(), self.dir_name, self.quality, None) {
+        match Compress::compress(
+            val_direntry.path(),
+            self.output_dir.as_ref().into(),
+            self.quality,
+            None,
+        ) {
             Err(e) => {
                 eprintln!("{e}");
             }
@@ -35,9 +43,9 @@ impl Compress {
         };
     }
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
-    pub fn compress<T>(
+    pub fn compress(
         p: T,
-        dir: PathBuf,
+        output_dir: T,
         q: u8,
         custom_name: Option<String>,
     ) -> anyhow::Result<String>
@@ -63,7 +71,7 @@ impl Compress {
             }
         };
         std::fs::write(
-            dir.join(name.as_str()),
+            output_dir.as_ref().join(name.as_str()),
             with_exif_preserved.result().encoder().bytes(),
         )?;
         let success_msg = format!("{name} before: {before_size} after: {after_size}");

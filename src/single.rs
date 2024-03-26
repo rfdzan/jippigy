@@ -1,26 +1,23 @@
 use crate::compress::Compress;
 use colored::Colorize;
-use std::{
-    io,
-    path::{Path, PathBuf},
-};
+use std::{io, path::Path};
 /// Single image compressions.
 pub struct Single<T: AsRef<Path>> {
     path: T,
     quality: u8,
-    dir: PathBuf,
+    output_dir: T,
     default_prefix: Option<String>,
 }
 impl<T: AsRef<Path>> Single<T> {
     /// Creates new single image task.
-    pub fn new(path: T, quality: u8, dir: PathBuf, prefix: Option<String>) -> Self
+    pub fn new(path: T, quality: u8, output_dir: T, prefix: Option<String>) -> Self
     where
         T: AsRef<Path>,
     {
         Self {
             path,
             quality,
-            dir,
+            output_dir,
             default_prefix: prefix,
         }
     }
@@ -54,7 +51,7 @@ impl<T: AsRef<Path>> Single<T> {
             None => "".to_string(),
             Some(p) => p,
         };
-        match Compress::compress(self.path, self.dir, self.quality, Some(prefix)) {
+        match Compress::compress(self.path, self.output_dir, self.quality, Some(prefix)) {
             Err(e) => eprintln!("{e}"),
             Ok(msg) => println!("{msg}"),
         }
