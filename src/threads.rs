@@ -1,60 +1,12 @@
 use crate::compress::Compress;
-use crate::TaskArgs;
 use crossbeam::deque::Worker;
 use crossbeam::deque::{Steal, Stealer};
-use std::env::current_dir;
 use std::fs::DirEntry;
-use std::fs::ReadDir;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time;
-/// Obtain tasks from the current working directory.
-pub struct Tasks<T: AsRef<Path>> {
-    queue: ReadDir,
-    device_num: u8,
-    quality: u8,
-    output_dir: T,
-}
-impl<T: AsRef<Path>> Tasks<T> {
-    /// Creates a new Task.
-    fn create(queue: ReadDir, device_num: u8, quality: u8, output_dir: T) -> io::Result<Self>
-    where
-        T: AsRef<Path>,
-    {
-        Ok(Self {
-            queue,
-            device_num,
-            quality,
-            output_dir,
-        })
-    }
-    /// Returns a work-stealing queue from which worker threads are going to steal.
-    fn get_main_worker(self) -> ReadDir {
-        self.queue
-    }
-    /// Returns the specified amount of worker threads to be used.
-    fn get_device(&self) -> u8 {
-        self.device_num
-    }
-    fn create_output_dir(&self) -> PathBuf {
-        if !self.output_dir.as_ref().exists() {
-            if let Err(e) = std::fs::create_dir(self.output_dir.as_ref()) {
-                eprintln!(
-                    "Cannot create output dir {}\n{e}",
-                    self.output_dir
-                        .as_ref()
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string()
-                )
-            }
-        }
-        self.output_dir.as_ref().to_path_buf()
-    }
-}
 /// Worker threads.
 pub struct TaskWorker<T> {
     device_num: u8,
@@ -79,25 +31,32 @@ impl<T: AsRef<Path> + 'static> TaskWorker<T> {
     }
     /// Compress images in parallel.
     pub fn do_bulk(mut self) -> io::Result<()> {
-        let create_task = Tasks::create(
-            std::fs::read_dir(self.image_dir.as_ref()).unwrap(),
-            self.device_num,
-            self.quality,
-            self.output_dir.as_ref().to_path_buf().clone(),
-        )?;
-        create_task.create_output_dir();
         let main_worker = Worker::new_fifo();
         for _ in 0..self.device_num {
             self.stealers.push(main_worker.stealer());
         }
+        let read_dir = std::fs::read_dir(self.image_dir.as_ref())?;
         let handles = self.send_to_threads();
-        for direntry in create_task.get_main_worker() {
+        for direntry in read_dir {
             main_worker.push(direntry.ok());
         }
         for handle in handles.into_iter() {
             handle.join().unwrap();
         }
         Ok(())
+    }
+    /// Creates output directory. Exits if it fails.
+    pub fn create_output_dir(self) -> Self {
+        if !self.output_dir.as_ref().exists() {
+            if let Err(e) = std::fs::create_dir(self.output_dir.as_ref()) {
+                eprintln!(
+                    "Cannot create output dir {}\n{e}",
+                    self.output_dir.as_ref().display()
+                );
+                std::process::exit(1);
+            }
+        }
+        self
     }
     /// Distribute work among threads.
     /// This method consumes the TaskWorker and returns a vector containing the handles to each thread.

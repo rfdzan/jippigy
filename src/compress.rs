@@ -3,7 +3,7 @@ use image::EncodableLayout;
 use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
 use std::fs::DirEntry;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 /// Compression-related work.
 pub struct Compress<T: AsRef<Path>> {
@@ -52,6 +52,13 @@ impl<T: AsRef<Path>> Compress<T> {
     where
         T: AsRef<Path>,
     {
+        if !output_dir.as_ref().exists() {
+            eprintln!(
+                "Output directory doesn't exist: {}",
+                output_dir.as_ref().display()
+            );
+            std::process::exit(1);
+        }
         let path_as_ref = p.as_ref();
         let filename = path_as_ref
             .file_name()

@@ -22,6 +22,7 @@ fn main() {
         args.get_device(),
         args.get_quality(),
     )
+    .create_output_dir()
     .do_bulk()
     {
         eprintln!("{e}");

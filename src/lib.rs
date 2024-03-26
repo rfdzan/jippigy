@@ -40,6 +40,7 @@ impl TaskArgs {
         }
         true
     }
+    /// Returns specified output dir.
     pub fn get_output_dir(&self) -> String {
         self.output_dir.clone()
     }
