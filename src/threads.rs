@@ -3,10 +3,95 @@ use crossbeam::deque::Worker;
 use crossbeam::deque::{Steal, Stealer};
 use std::fs::DirEntry;
 use std::io;
+use std::marker::PhantomData;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time;
+
+pub enum HasCurrentDir {}
+pub enum HasOutputDir {}
+
+pub struct TaskWorkerBuilder<IM, O, T> {
+    image_dir: T,
+    quality: u8,
+    output_dir: T,
+    device_num: u8,
+    _marker: PhantomData<fn() -> (IM, O)>,
+}
+impl<IM, O, T> Default for TaskWorkerBuilder<IM, O, T>
+where
+    T: AsRef<Path> + Default,
+{
+    fn default() -> Self {
+        Self {
+            image_dir: Default::default(),
+            quality: 50,
+            output_dir: Default::default(),
+            device_num: 4,
+            _marker: Default::default(),
+        }
+    }
+}
+impl<IM, O, T> TaskWorkerBuilder<IM, O, T>
+where
+    T: AsRef<Path> + Default,
+{
+    pub fn output_dir(self, output_dir: T) -> TaskWorkerBuilder<HasCurrentDir, HasOutputDir, T> {
+        self.create_output_dir(&output_dir);
+        TaskWorkerBuilder {
+            image_dir: self.image_dir,
+            quality: self.quality,
+            output_dir,
+            device_num: self.device_num,
+            _marker: PhantomData,
+        }
+    }
+    pub fn quality(self, quality: u8) -> TaskWorkerBuilder<HasCurrentDir, O, T> {
+        TaskWorkerBuilder {
+            image_dir: self.image_dir,
+            quality,
+            device_num: self.device_num,
+            output_dir: self.output_dir,
+            _marker: PhantomData,
+        }
+    }
+    pub fn device(self, device_num: u8) -> TaskWorkerBuilder<HasCurrentDir, O, T> {
+        TaskWorkerBuilder {
+            image_dir: self.image_dir,
+            quality: self.quality,
+            output_dir: self.output_dir,
+            device_num,
+            _marker: PhantomData,
+        }
+    }
+    /// Creates output directory. Exits if it fails.
+    fn create_output_dir(&self, output_dir: &T) {
+        if !output_dir.as_ref().exists() {
+            if let Err(e) = std::fs::create_dir(output_dir.as_ref()) {
+                eprintln!(
+                    "Cannot create output dir {}\n{e}",
+                    self.output_dir.as_ref().display()
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+}
+impl<T> TaskWorkerBuilder<HasCurrentDir, HasOutputDir, T>
+where
+    T: AsRef<Path>,
+{
+    pub fn build(self) -> TaskWorker<T> {
+        TaskWorker {
+            device_num: self.device_num,
+            quality: self.quality,
+            image_dir: self.image_dir,
+            output_dir: self.output_dir,
+            stealers: Vec::with_capacity(usize::from(self.device_num)),
+        }
+    }
+}
 /// Worker threads.
 pub struct TaskWorker<T> {
     device_num: u8,
@@ -15,18 +100,15 @@ pub struct TaskWorker<T> {
     output_dir: T,
     stealers: Vec<Stealer<Option<DirEntry>>>,
 }
-impl<T: AsRef<Path> + 'static> TaskWorker<T> {
-    /// Creates a new TaskWorker.
-    pub fn new(image_dir: T, output_dir: T, device_num: u8, quality: u8) -> Self
-    where
-        T: AsRef<Path> + 'static,
-    {
-        Self {
+impl<T: AsRef<Path> + Default> TaskWorker<T> {
+    /// Creates a new TaskWorkerBuilder.
+    pub fn builder(image_dir: T) -> TaskWorkerBuilder<HasCurrentDir, T, T> {
+        TaskWorkerBuilder {
             image_dir,
-            output_dir,
-            device_num,
-            quality,
-            stealers: Vec::with_capacity(usize::from(device_num)),
+            quality: 50,
+            output_dir: Default::default(),
+            device_num: 4,
+            _marker: PhantomData,
         }
     }
     /// Compress images in parallel.
@@ -44,19 +126,6 @@ impl<T: AsRef<Path> + 'static> TaskWorker<T> {
             handle.join().unwrap();
         }
         Ok(())
-    }
-    /// Creates output directory. Exits if it fails.
-    pub fn create_output_dir(self) -> Self {
-        if !self.output_dir.as_ref().exists() {
-            if let Err(e) = std::fs::create_dir(self.output_dir.as_ref()) {
-                eprintln!(
-                    "Cannot create output dir {}\n{e}",
-                    self.output_dir.as_ref().display()
-                );
-                std::process::exit(1);
-            }
-        }
-        self
     }
     /// Distribute work among threads.
     /// This method consumes the TaskWorker and returns a vector containing the handles to each thread.

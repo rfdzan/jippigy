@@ -16,15 +16,23 @@ fn main() {
         {
             eprintln!("{e}");
         }
-    } else if let Err(e) = TaskWorker::new(
-        cur_dir.clone(),
-        cur_dir.join(args.get_output_dir()).into(),
-        args.get_device(),
-        args.get_quality(),
-    )
-    .create_output_dir()
-    .do_bulk()
-    {
-        eprintln!("{e}");
-    }
+    } else {
+        TaskWorker::builder(cur_dir.clone())
+            .output_dir(cur_dir.join(args.get_output_dir()))
+            .quality(args.get_quality())
+            .device(args.get_device())
+            .build()
+            .do_bulk()
+            .unwrap();
+    } // } else if let Err(e) = TaskWorker::new(
+      //     cur_dir.clone(),
+      //     cur_dir.join(args.get_output_dir()).into(),
+      //     args.get_device(),
+      //     args.get_quality(),
+      // )
+      // .create_output_dir()
+      // .do_bulk()
+      // {
+      //     eprintln!("{e}");
+      // }
 }
