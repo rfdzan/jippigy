@@ -4,7 +4,7 @@ use crossbeam::deque::{Steal, Stealer};
 use std::fs::DirEntry;
 use std::io;
 use std::marker::PhantomData;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time;
@@ -82,27 +82,29 @@ impl<T> TaskWorkerBuilder<HasCurrentDir, HasOutputDir, T>
 where
     T: AsRef<Path>,
 {
-    pub fn build(self) -> TaskWorker<T> {
+    pub fn build(self) -> TaskWorker {
         TaskWorker {
             device_num: self.device_num,
             quality: self.quality,
-            image_dir: self.image_dir,
-            output_dir: self.output_dir,
+            image_dir: self.image_dir.as_ref().to_path_buf(),
+            output_dir: self.output_dir.as_ref().to_path_buf(),
             stealers: Vec::with_capacity(usize::from(self.device_num)),
         }
     }
 }
 /// Worker threads.
-pub struct TaskWorker<T> {
+pub struct TaskWorker {
     device_num: u8,
     quality: u8,
-    image_dir: T,
-    output_dir: T,
+    image_dir: PathBuf,
+    output_dir: PathBuf,
     stealers: Vec<Stealer<Option<DirEntry>>>,
 }
-impl<T: AsRef<Path> + Default> TaskWorker<T> {
+impl TaskWorker {
     /// Creates a new TaskWorkerBuilder.
-    pub fn builder(image_dir: T) -> TaskWorkerBuilder<HasCurrentDir, T, T> {
+    pub fn builder<T: AsRef<Path> + Default>(
+        image_dir: T,
+    ) -> TaskWorkerBuilder<HasCurrentDir, T, T> {
         TaskWorkerBuilder {
             image_dir,
             quality: 50,
@@ -117,7 +119,7 @@ impl<T: AsRef<Path> + Default> TaskWorker<T> {
         for _ in 0..self.device_num {
             self.stealers.push(main_worker.stealer());
         }
-        let read_dir = std::fs::read_dir(self.image_dir.as_ref())?;
+        let read_dir = std::fs::read_dir(self.image_dir.as_path())?;
         let handles = self.send_to_threads();
         for direntry in read_dir {
             main_worker.push(direntry.ok());
@@ -134,7 +136,7 @@ impl<T: AsRef<Path> + Default> TaskWorker<T> {
         let to_steal_from = Arc::new(Mutex::new(self.stealers));
         for _ in 0..self.device_num {
             let local_stealer = Arc::clone(&to_steal_from);
-            let thread_output_dir = self.output_dir.as_ref().to_path_buf().clone();
+            let thread_output_dir = self.output_dir.clone();
             let handle = thread::spawn(move || {
                 let mut are_queues_empty = Vec::with_capacity(usize::from(self.device_num));
                 let mut payload = Vec::with_capacity(1);
