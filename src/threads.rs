@@ -9,9 +9,12 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time;
 
-pub enum HasCurrentDir {}
+/// Current state has image directory.
+pub enum HasImageDir {}
+/// Current state has output directory.
 pub enum HasOutputDir {}
 
+/// Custom configuration for building a TaskWorker.
 pub struct TaskWorkerBuilder<IM, O, T> {
     image_dir: T,
     quality: u8,
@@ -37,7 +40,9 @@ impl<IM, O, T> TaskWorkerBuilder<IM, O, T>
 where
     T: AsRef<Path> + Default,
 {
-    pub fn output_dir(self, output_dir: T) -> TaskWorkerBuilder<HasCurrentDir, HasOutputDir, T> {
+    /// Creates an output directory for compressed images.
+    /// This method is required.
+    pub fn output_dir(self, output_dir: T) -> TaskWorkerBuilder<HasImageDir, HasOutputDir, T> {
         self.create_output_dir(&output_dir);
         TaskWorkerBuilder {
             image_dir: self.image_dir,
@@ -47,7 +52,9 @@ where
             _marker: PhantomData,
         }
     }
-    pub fn quality(self, quality: u8) -> TaskWorkerBuilder<HasCurrentDir, O, T> {
+    /// Specifies the quality of compressed images.
+    /// Defaults to 50 (50% of the original quality).
+    pub fn quality(self, quality: u8) -> TaskWorkerBuilder<HasImageDir, O, T> {
         TaskWorkerBuilder {
             image_dir: self.image_dir,
             quality,
@@ -56,7 +63,9 @@ where
             _marker: PhantomData,
         }
     }
-    pub fn device(self, device_num: u8) -> TaskWorkerBuilder<HasCurrentDir, O, T> {
+    /// Specifies the number of threads to be used.
+    /// Defaults to 4.
+    pub fn device(self, device_num: u8) -> TaskWorkerBuilder<HasImageDir, O, T> {
         TaskWorkerBuilder {
             image_dir: self.image_dir,
             quality: self.quality,
@@ -78,10 +87,11 @@ where
         }
     }
 }
-impl<T> TaskWorkerBuilder<HasCurrentDir, HasOutputDir, T>
+impl<T> TaskWorkerBuilder<HasImageDir, HasOutputDir, T>
 where
     T: AsRef<Path>,
 {
+    /// Builds a new TaskWorker.
     pub fn build(self) -> TaskWorker {
         TaskWorker {
             device_num: self.device_num,
@@ -102,9 +112,7 @@ pub struct TaskWorker {
 }
 impl TaskWorker {
     /// Creates a new TaskWorkerBuilder.
-    pub fn builder<T: AsRef<Path> + Default>(
-        image_dir: T,
-    ) -> TaskWorkerBuilder<HasCurrentDir, T, T> {
+    pub fn builder<T: AsRef<Path> + Default>(image_dir: T) -> TaskWorkerBuilder<HasImageDir, T, T> {
         TaskWorkerBuilder {
             image_dir,
             quality: 50,
