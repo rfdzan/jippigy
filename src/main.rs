@@ -6,19 +6,16 @@ fn main() {
     let cur_dir = current_dir().unwrap();
     args.verify();
     if args.is_single() {
-        if let Err(e) = Single::new(
-            args.get_single(),
-            args.get_quality(),
-            cur_dir,
-            Some("smoljpg_".to_string()),
-        )
-        .do_single()
-        {
-            eprintln!("{e}");
-        }
+        Single::builder(args.get_single())
+            .output_dir(args.get_output_dir())
+            .with_quality(50)
+            .with_prefix("smoljpg_".to_string())
+            .build()
+            .do_single()
+            .unwrap();
     } else {
         TaskWorker::builder(cur_dir.clone())
-            .output_dir(cur_dir.join(args.get_output_dir()))
+            .output_dir(args.get_output_dir())
             .quality(args.get_quality())
             .device(args.get_device())
             .build()

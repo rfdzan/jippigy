@@ -8,6 +8,8 @@ pub mod compress;
 pub mod single;
 /// Parallelization module.
 pub mod threads;
+/// Current state has output directory.
+pub enum HasOutputDir {}
 #[derive(Parser, Debug)]
 /// A multi-threaded JPG compression tool.
 pub struct TaskArgs {
@@ -41,8 +43,22 @@ impl TaskArgs {
         true
     }
     /// Returns specified output dir.
-    pub fn get_output_dir(&self) -> String {
-        self.output_dir.clone()
+    pub fn get_output_dir(&self) -> PathBuf {
+        if !self.output_dir.is_empty() && self.is_single() {
+            let output_to_path = PathBuf::from(self.output_dir.as_str());
+            if !output_to_path.exists() {
+                match std::fs::create_dir(output_to_path.as_path()) {
+                    Err(e) => {
+                        eprintln!("Error creating dir: {}\n{e}", output_to_path.display());
+                        std::process::exit(1);
+                    }
+                    Ok(_) => {
+                        return output_to_path;
+                    }
+                }
+            }
+        }
+        PathBuf::from(self.output_dir.as_str())
     }
     /// Returns the single image path provided.
     pub fn get_single(&self) -> PathBuf {

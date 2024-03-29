@@ -1,4 +1,5 @@
 use crate::compress::Compress;
+use crate::HasOutputDir;
 use crossbeam::deque::Worker;
 use crossbeam::deque::{Steal, Stealer};
 use std::fs::DirEntry;
@@ -11,8 +12,6 @@ use std::time;
 
 /// Current state has image directory.
 pub enum HasImageDir {}
-/// Current state has output directory.
-pub enum HasOutputDir {}
 
 /// Custom configuration for building a TaskWorker.
 pub struct TaskWorkerBuilder<IM, O, T> {

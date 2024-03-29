@@ -1,24 +1,78 @@
-use crate::compress::Compress;
+use crate::{compress::Compress, HasOutputDir};
 use colored::Colorize;
-use std::{io, path::Path};
-/// Single image compressions.
-pub struct Single<T: AsRef<Path>> {
-    path: T,
+use std::{
+    io,
+    marker::PhantomData,
+    path::{Path, PathBuf},
+};
+pub enum HasImage {}
+pub struct SingleBuilder<IM, O, T> {
+    image: T,
     quality: u8,
     output_dir: T,
-    default_prefix: Option<String>,
+    prefix: String,
+    _marker: PhantomData<fn() -> (IM, O)>,
 }
-impl<T: AsRef<Path>> Single<T> {
-    /// Creates new single image task.
-    pub fn new(path: T, quality: u8, output_dir: T, prefix: Option<String>) -> Self
-    where
-        T: AsRef<Path>,
-    {
-        Self {
-            path,
-            quality,
+impl<IM, O, T> SingleBuilder<IM, O, T>
+where
+    T: AsRef<Path> + Default,
+{
+    pub fn output_dir(self, output_dir: T) -> SingleBuilder<IM, HasOutputDir, T> {
+        SingleBuilder {
+            image: self.image,
+            quality: self.quality,
             output_dir,
-            default_prefix: prefix,
+            prefix: self.prefix,
+            _marker: PhantomData,
+        }
+    }
+    pub fn with_quality(self, quality: u8) -> SingleBuilder<IM, O, T> {
+        SingleBuilder {
+            image: self.image,
+            quality,
+            output_dir: self.output_dir,
+            prefix: self.prefix,
+            _marker: PhantomData,
+        }
+    }
+    pub fn with_prefix(self, prefix: String) -> SingleBuilder<IM, O, T> {
+        SingleBuilder {
+            image: self.image,
+            quality: self.quality,
+            output_dir: self.output_dir,
+            prefix,
+            _marker: PhantomData,
+        }
+    }
+}
+impl<T> SingleBuilder<HasImage, HasOutputDir, T>
+where
+    T: AsRef<Path>,
+{
+    pub fn build(self) -> Single {
+        Single {
+            image: self.image.as_ref().to_path_buf(),
+            quality: self.quality,
+            output_dir: self.output_dir.as_ref().to_path_buf(),
+            default_prefix: self.prefix,
+        }
+    }
+}
+/// Single image compressions.
+pub struct Single {
+    image: PathBuf,
+    quality: u8,
+    output_dir: PathBuf,
+    default_prefix: String,
+}
+impl Single {
+    pub fn builder<T: AsRef<Path> + Default>(image: T) -> SingleBuilder<HasImage, T, T> {
+        SingleBuilder {
+            image,
+            quality: 50,
+            output_dir: Default::default(),
+            prefix: "smoljpg_".to_string(),
+            _marker: PhantomData,
         }
     }
     /// Compress a single image.
@@ -28,11 +82,10 @@ impl<T: AsRef<Path>> Single<T> {
     }
     /// Check whether or not image exists.
     fn exists(self) -> Self {
-        if !self.path.as_ref().exists() {
+        if !self.image.exists() {
             eprintln!(
                 "File does not exist: {}. Maybe there's a {}?\nInclude the extension {} as well.",
-                self.path
-                    .as_ref()
+                self.image
                     .file_name()
                     .unwrap_or_default()
                     .to_string_lossy()
@@ -47,11 +100,14 @@ impl<T: AsRef<Path>> Single<T> {
     }
     /// Compress a single image.
     fn compress(self) {
-        let prefix = match self.default_prefix {
-            None => "".to_string(),
-            Some(p) => p,
+        let prefix = {
+            if self.default_prefix.is_empty() {
+                "".to_string()
+            } else {
+                self.default_prefix
+            }
         };
-        match Compress::compress(self.path, self.output_dir, self.quality, Some(prefix)) {
+        match Compress::compress(self.image, self.output_dir, self.quality, Some(prefix)) {
             Err(e) => eprintln!("{e}"),
             Ok(msg) => println!("{msg}"),
         }
