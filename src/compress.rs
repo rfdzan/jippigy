@@ -1,84 +1,61 @@
 use colored::Colorize;
 use image::EncodableLayout;
 use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
-use std::fs::DirEntry;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 /// Compression-related work.
 pub struct Compress<T: AsRef<Path>> {
-    direntry: Option<DirEntry>,
+    path: PathBuf,
     output_dir: T,
     quality: u8,
+    prefix: Option<String>,
 }
 impl<T: AsRef<Path>> Compress<T> {
     /// Creates a new compression task.
-    pub fn new(direntry: Option<DirEntry>, output_dir: T, quality: u8) -> Self
+    pub fn new(path: PathBuf, output_dir: T, quality: u8, prefix: Option<String>) -> Self
     where
         T: AsRef<Path>,
     {
         Self {
-            direntry,
+            path,
             output_dir,
             quality,
+            prefix,
         }
     }
-    /// Start compression work.
-    pub fn do_work(self) {
-        let Some(val_direntry) = self.direntry else {
-            return;
-        };
-        match Compress::compress(
-            val_direntry.path(),
-            self.output_dir.as_ref().into(),
-            self.quality,
-            None,
-        ) {
-            Err(e) => {
-                eprintln!("{e}");
-            }
-            Ok(msg) => {
-                println!("{msg}");
-            }
-        };
-    }
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
-    pub fn compress(
-        p: T,
-        output_dir: T,
-        q: u8,
-        custom_name: Option<String>,
-    ) -> anyhow::Result<String>
+    pub fn compress(&self) -> anyhow::Result<String>
     where
         T: AsRef<Path>,
     {
-        if !output_dir.as_ref().exists() {
+        if !self.output_dir.as_ref().exists() {
             eprintln!(
                 "Output directory doesn't exist: {}",
-                output_dir.as_ref().display()
+                self.output_dir.as_ref().display()
             );
             std::process::exit(1);
         }
-        let path_as_ref = p.as_ref();
+        let path_as_ref = self.path.clone();
         let filename = path_as_ref
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        let with_exif_preserved = CompressImage::new(path_as_ref, q)
+        let with_exif_preserved = CompressImage::new(path_as_ref.as_path(), self.quality)
             .read()?
             .compress()?
             .preserve_exif()?;
         let before_size = with_exif_preserved.format_size_before();
         let after_size = with_exif_preserved.format_size_after();
         let name = {
-            match custom_name {
+            match self.prefix.clone() {
                 None => filename,
                 Some(n) => n + filename.as_str(),
             }
         };
         std::fs::write(
-            output_dir.as_ref().join(name.as_str()),
+            self.output_dir.as_ref().join(name.as_str()),
             with_exif_preserved.result().encoder().bytes(),
         )?;
         let success_msg = format!("{name} before: {before_size} after: {after_size}");

@@ -71,7 +71,7 @@ impl Single {
             image,
             quality: 50,
             output_dir: Default::default(),
-            prefix: "smoljpg_".to_string(),
+            prefix: Default::default(),
             _marker: PhantomData,
         }
     }
@@ -102,12 +102,12 @@ impl Single {
     fn compress(self) {
         let prefix = {
             if self.default_prefix.is_empty() {
-                "".to_string()
+                None
             } else {
-                self.default_prefix
+                Some(self.default_prefix)
             }
         };
-        match Compress::compress(self.image, self.output_dir, self.quality, Some(prefix)) {
+        match Compress::new(self.image, self.output_dir, self.quality, prefix).compress() {
             Err(e) => eprintln!("{e}"),
             Ok(msg) => println!("{msg}"),
         }

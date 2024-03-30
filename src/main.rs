@@ -9,15 +9,15 @@ fn main() {
         Single::builder(args.get_single())
             .output_dir(args.get_output_dir())
             .with_quality(50)
-            .with_prefix("smoljpg_".to_string())
             .build()
             .do_single()
             .unwrap();
     } else {
         TaskWorker::builder(cur_dir.clone())
             .output_dir(args.get_output_dir())
-            .quality(args.get_quality())
-            .device(args.get_device())
+            .unwrap()
+            .with_quality(args.get_quality())
+            .with_device(args.get_device())
             .build()
             .do_bulk()
             .unwrap();

@@ -19,6 +19,7 @@ pub struct TaskWorkerBuilder<IM, O, T> {
     quality: u8,
     output_dir: T,
     device_num: u8,
+    prefix: String,
     _marker: PhantomData<fn() -> (IM, O)>,
 }
 impl<IM, O, T> Default for TaskWorkerBuilder<IM, O, T>
@@ -31,6 +32,7 @@ where
             quality: 50,
             output_dir: Default::default(),
             device_num: 4,
+            prefix: Default::default(),
             _marker: Default::default(),
         }
     }
@@ -41,49 +43,60 @@ where
 {
     /// Creates an output directory for compressed images.
     /// This method is required.
-    pub fn output_dir(self, output_dir: T) -> TaskWorkerBuilder<HasImageDir, HasOutputDir, T> {
-        self.create_output_dir(&output_dir);
-        TaskWorkerBuilder {
+    pub fn output_dir(
+        self,
+        output_dir: T,
+    ) -> io::Result<TaskWorkerBuilder<HasImageDir, HasOutputDir, T>> {
+        self.create_output_dir(&output_dir)?;
+        Ok(TaskWorkerBuilder {
             image_dir: self.image_dir,
             quality: self.quality,
             output_dir,
             device_num: self.device_num,
+            prefix: self.prefix,
             _marker: PhantomData,
-        }
+        })
     }
     /// Specifies the quality of compressed images.
     /// Defaults to 50 (50% of the original quality).
-    pub fn quality(self, quality: u8) -> TaskWorkerBuilder<HasImageDir, O, T> {
+    pub fn with_quality(self, quality: u8) -> TaskWorkerBuilder<HasImageDir, O, T> {
         TaskWorkerBuilder {
             image_dir: self.image_dir,
             quality,
             device_num: self.device_num,
             output_dir: self.output_dir,
+            prefix: self.prefix,
+            _marker: PhantomData,
+        }
+    }
+    pub fn with_prefix(self, prefix: String) -> TaskWorkerBuilder<IM, O, T> {
+        TaskWorkerBuilder {
+            image_dir: self.image_dir,
+            quality: self.quality,
+            device_num: self.device_num,
+            output_dir: self.output_dir,
+            prefix,
             _marker: PhantomData,
         }
     }
     /// Specifies the number of threads to be used.
     /// Defaults to 4.
-    pub fn device(self, device_num: u8) -> TaskWorkerBuilder<HasImageDir, O, T> {
+    pub fn with_device(self, device_num: u8) -> TaskWorkerBuilder<HasImageDir, O, T> {
         TaskWorkerBuilder {
             image_dir: self.image_dir,
             quality: self.quality,
             output_dir: self.output_dir,
             device_num,
+            prefix: self.prefix,
             _marker: PhantomData,
         }
     }
     /// Creates output directory. Exits if it fails.
-    fn create_output_dir(&self, output_dir: &T) {
+    fn create_output_dir(&self, output_dir: &T) -> io::Result<()> {
         if !output_dir.as_ref().exists() {
-            if let Err(e) = std::fs::create_dir(output_dir.as_ref()) {
-                eprintln!(
-                    "Cannot create output dir {}\n{e}",
-                    self.output_dir.as_ref().display()
-                );
-                std::process::exit(1);
-            }
+            std::fs::create_dir(output_dir.as_ref())?
         }
+        Ok(())
     }
 }
 impl<T> TaskWorkerBuilder<HasImageDir, HasOutputDir, T>
@@ -98,6 +111,7 @@ where
             image_dir: self.image_dir.as_ref().to_path_buf(),
             output_dir: self.output_dir.as_ref().to_path_buf(),
             stealers: Vec::with_capacity(usize::from(self.device_num)),
+            prefix: self.prefix,
         }
     }
 }
@@ -107,6 +121,7 @@ pub struct TaskWorker {
     quality: u8,
     image_dir: PathBuf,
     output_dir: PathBuf,
+    prefix: String,
     stealers: Vec<Stealer<Option<DirEntry>>>,
 }
 impl TaskWorker {
@@ -117,6 +132,7 @@ impl TaskWorker {
             quality: 50,
             output_dir: Default::default(),
             device_num: 4,
+            prefix: Default::default(),
             _marker: PhantomData,
         }
     }
@@ -144,6 +160,14 @@ impl TaskWorker {
         for _ in 0..self.device_num {
             let local_stealer = Arc::clone(&to_steal_from);
             let thread_output_dir = self.output_dir.clone();
+            // let thread_custom_name = self.prefix.clone();
+            let thread_custom_name = {
+                if self.prefix.clone().trim().is_empty() {
+                    None
+                } else {
+                    Some(self.prefix.clone())
+                }
+            };
             let handle = thread::spawn(move || {
                 let mut are_queues_empty = Vec::with_capacity(usize::from(self.device_num));
                 let mut payload = Vec::with_capacity(1);
@@ -174,7 +198,23 @@ impl TaskWorker {
                         // lock is no longer needed past this point
                     }
                     if let Some(direntry) = payload.pop() {
-                        Compress::new(direntry, thread_output_dir.clone(), self.quality).do_work();
+                        if let Some(path) = direntry {
+                            match Compress::new(
+                                path.path(),
+                                thread_output_dir.clone(),
+                                self.quality,
+                                thread_custom_name.clone(),
+                            )
+                            .compress()
+                            {
+                                Err(e) => {
+                                    eprintln!("{e}");
+                                }
+                                Ok(msg) => {
+                                    println!("{msg}");
+                                }
+                            }
+                        }
                     }
                     // if all stealers are empty, exit the loop.
                     if are_queues_empty.iter().all(|val| val == &true) {
