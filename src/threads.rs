@@ -1,4 +1,5 @@
 use crate::compress::Compress;
+use crate::defaults::*;
 use crate::HasOutputDir;
 use crossbeam::deque::Worker;
 use crossbeam::deque::{Steal, Stealer};
@@ -29,9 +30,9 @@ where
     fn default() -> Self {
         Self {
             image_dir: Default::default(),
-            quality: 50,
+            quality: QUALITY,
             output_dir: Default::default(),
-            device_num: 4,
+            device_num: DEVICE,
             prefix: Default::default(),
             _marker: Default::default(),
         }

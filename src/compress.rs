@@ -4,6 +4,21 @@ use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
 use std::io;
 use std::path::{Path, PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
+struct ValidQuality(u8);
+impl ValidQuality {
+    fn val(&self) -> u8 {
+        self.0
+    }
+}
+impl From<u8> for ValidQuality {
+    fn from(value: u8) -> Self {
+        let val = {
+            let max = std::cmp::min(value, 100);
+            std::cmp::max(max, 1)
+        };
+        Self(val)
+    }
+}
 /// Compression-related work.
 pub struct Compress<T: AsRef<Path>> {
     path: PathBuf,
@@ -20,7 +35,7 @@ impl<T: AsRef<Path>> Compress<T> {
         Self {
             path,
             output_dir,
-            quality,
+            quality: ValidQuality::from(quality).val(),
             prefix,
         }
     }
@@ -58,7 +73,10 @@ impl<T: AsRef<Path>> Compress<T> {
             self.output_dir.as_ref().join(name.as_str()),
             with_exif_preserved.result().encoder().bytes(),
         )?;
-        let success_msg = format!("{name} before: {before_size} after: {after_size}");
+        let success_msg = format!(
+            "{name} before: {before_size} after: {after_size} ({}%)",
+            self.quality
+        );
         Ok(success_msg)
     }
 }

@@ -4,11 +4,10 @@ use std::env::current_dir;
 fn main() {
     let args = TaskArgs::parse();
     let cur_dir = current_dir().unwrap();
-    args.verify();
     if args.is_single() {
         Single::builder(args.get_single())
             .output_dir(args.get_output_dir())
-            .with_quality(50)
+            .with_quality(args.get_quality())
             .build()
             .do_single()
             .unwrap();

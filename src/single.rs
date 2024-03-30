@@ -1,4 +1,4 @@
-use crate::{compress::Compress, HasOutputDir};
+use crate::{compress::Compress, defaults::*, HasOutputDir};
 use colored::Colorize;
 use std::{
     io,
@@ -69,7 +69,7 @@ impl Single {
     pub fn builder<T: AsRef<Path> + Default>(image: T) -> SingleBuilder<HasImage, T, T> {
         SingleBuilder {
             image,
-            quality: 50,
+            quality: QUALITY,
             output_dir: Default::default(),
             prefix: Default::default(),
             _marker: PhantomData,

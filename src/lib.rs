@@ -4,6 +4,8 @@ use clap::Parser;
 use std::{env, path::PathBuf};
 /// Compression module.
 pub mod compress;
+/// Default values.
+pub mod defaults;
 /// Single-image tasks.
 pub mod single;
 /// Parallelization module.
@@ -14,7 +16,7 @@ pub enum HasOutputDir {}
 /// A multi-threaded JPG compression tool.
 pub struct TaskArgs {
     /// Ranges from 1 (smallest file, worst quality) to 100 (biggest file, best quality).
-    #[arg(default_value_t = 50)]
+    #[arg(default_value_t = 95)]
     quality: u8,
     /// The output directory of compressed images.
     #[arg(short, default_value_t = format!("compressed"))]
@@ -71,11 +73,11 @@ impl TaskArgs {
         };
         path.join(self.single.as_str())
     }
-    /// Checks command-line input.
-    pub fn verify(&self) {
-        if self.quality < 1 || self.quality > 100 {
-            eprintln!("Quality must be between 1 and 100");
-            std::process::exit(1);
-        }
-    }
+    // / Checks command-line input.
+    // pub fn verify(&self) {
+    //     if self.quality < 1 || self.quality > 100 {
+    //         eprintln!("Quality must be between 1 and 100");
+    //         std::process::exit(1);
+    //     }
+    // }
 }
