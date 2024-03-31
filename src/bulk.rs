@@ -1,6 +1,4 @@
-use crate::compress::Compress;
-use crate::defaults::*;
-use crate::HasOutputDir;
+use crate::{compress::Compress, HasImageDir, HasOutputDir, DEVICE, QUALITY};
 use crossbeam::deque::Worker;
 use crossbeam::deque::{Steal, Stealer};
 use std::fs::DirEntry;
@@ -11,11 +9,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time;
 
-/// Current state has image directory.
-pub enum HasImageDir {}
-
-/// Custom configuration for building a TaskWorker.
-pub struct TaskWorkerBuilder<IM, O, T> {
+/// Custom configuration for building a Parallel.
+#[derive(Debug, Clone)]
+pub struct ParallelBuilder<IM, O, T> {
     image_dir: T,
     quality: u8,
     output_dir: T,
@@ -23,7 +19,7 @@ pub struct TaskWorkerBuilder<IM, O, T> {
     prefix: String,
     _marker: PhantomData<fn() -> (IM, O)>,
 }
-impl<IM, O, T> Default for TaskWorkerBuilder<IM, O, T>
+impl<IM, O, T> Default for ParallelBuilder<IM, O, T>
 where
     T: AsRef<Path> + Default,
 {
@@ -38,7 +34,7 @@ where
         }
     }
 }
-impl<IM, O, T> TaskWorkerBuilder<IM, O, T>
+impl<IM, O, T> ParallelBuilder<IM, O, T>
 where
     T: AsRef<Path> + Default,
 {
@@ -47,9 +43,9 @@ where
     pub fn output_dir(
         self,
         output_dir: T,
-    ) -> io::Result<TaskWorkerBuilder<HasImageDir, HasOutputDir, T>> {
+    ) -> io::Result<ParallelBuilder<HasImageDir, HasOutputDir, T>> {
         self.create_output_dir(&output_dir)?;
-        Ok(TaskWorkerBuilder {
+        Ok(ParallelBuilder {
             image_dir: self.image_dir,
             quality: self.quality,
             output_dir,
@@ -59,9 +55,9 @@ where
         })
     }
     /// Specifies the quality of compressed images.
-    /// Defaults to 50 (50% of the original quality).
-    pub fn with_quality(self, quality: u8) -> TaskWorkerBuilder<HasImageDir, O, T> {
-        TaskWorkerBuilder {
+    /// Defaults to 95 (95% of the original quality).
+    pub fn with_quality(self, quality: u8) -> ParallelBuilder<HasImageDir, O, T> {
+        ParallelBuilder {
             image_dir: self.image_dir,
             quality,
             device_num: self.device_num,
@@ -70,8 +66,9 @@ where
             _marker: PhantomData,
         }
     }
-    pub fn with_prefix(self, prefix: String) -> TaskWorkerBuilder<IM, O, T> {
-        TaskWorkerBuilder {
+    /// Specifies a custom file name prefix for compressed images.
+    pub fn with_prefix(self, prefix: String) -> ParallelBuilder<IM, O, T> {
+        ParallelBuilder {
             image_dir: self.image_dir,
             quality: self.quality,
             device_num: self.device_num,
@@ -82,8 +79,8 @@ where
     }
     /// Specifies the number of threads to be used.
     /// Defaults to 4.
-    pub fn with_device(self, device_num: u8) -> TaskWorkerBuilder<HasImageDir, O, T> {
-        TaskWorkerBuilder {
+    pub fn with_device(self, device_num: u8) -> ParallelBuilder<HasImageDir, O, T> {
+        ParallelBuilder {
             image_dir: self.image_dir,
             quality: self.quality,
             output_dir: self.output_dir,
@@ -100,13 +97,13 @@ where
         Ok(())
     }
 }
-impl<T> TaskWorkerBuilder<HasImageDir, HasOutputDir, T>
+impl<T> ParallelBuilder<HasImageDir, HasOutputDir, T>
 where
     T: AsRef<Path>,
 {
-    /// Builds a new TaskWorker.
-    pub fn build(self) -> TaskWorker {
-        TaskWorker {
+    /// Builds a new Parallel.
+    pub fn build(self) -> Parallel {
+        Parallel {
             device_num: self.device_num,
             quality: self.quality,
             image_dir: self.image_dir.as_ref().to_path_buf(),
@@ -117,7 +114,8 @@ where
     }
 }
 /// Worker threads.
-pub struct TaskWorker {
+#[derive(Debug, Clone)]
+pub struct Parallel {
     device_num: u8,
     quality: u8,
     image_dir: PathBuf,
@@ -125,10 +123,10 @@ pub struct TaskWorker {
     prefix: String,
     stealers: Vec<Stealer<Option<DirEntry>>>,
 }
-impl TaskWorker {
-    /// Creates a new TaskWorkerBuilder.
-    pub fn builder<T: AsRef<Path> + Default>(image_dir: T) -> TaskWorkerBuilder<HasImageDir, T, T> {
-        TaskWorkerBuilder {
+impl Parallel {
+    /// Creates a new ParallelBuilder.
+    pub fn builder<T: AsRef<Path> + Default>(image_dir: T) -> ParallelBuilder<HasImageDir, T, T> {
+        ParallelBuilder {
             image_dir,
             quality: 50,
             output_dir: Default::default(),
@@ -154,7 +152,7 @@ impl TaskWorker {
         Ok(())
     }
     /// Distribute work among threads.
-    /// This method consumes the TaskWorker and returns a vector containing the handles to each thread.
+    /// This method consumes the Parallel and returns a vector containing the handles to each thread.
     fn send_to_threads(self) -> Vec<thread::JoinHandle<()>> {
         let mut handles = Vec::with_capacity(usize::from(self.device_num));
         let to_steal_from = Arc::new(Mutex::new(self.stealers));

@@ -1,2 +1,4 @@
-pub const QUALITY: u8 = 95;
-pub const DEVICE: u8 = 4;
+/// Quality default.
+pub(crate) const QUALITY: u8 = 95;
+/// Device default.
+pub(crate) const DEVICE: u8 = 4;

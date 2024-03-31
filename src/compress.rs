@@ -4,6 +4,8 @@ use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
 use std::io;
 use std::path::{Path, PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
+
+#[derive(Debug, Clone, Copy)]
 struct ValidQuality(u8);
 impl ValidQuality {
     fn val(&self) -> u8 {
@@ -20,7 +22,8 @@ impl From<u8> for ValidQuality {
     }
 }
 /// Compression-related work.
-pub struct Compress<T: AsRef<Path>> {
+#[derive(Debug, Clone)]
+pub(crate) struct Compress<T: AsRef<Path>> {
     path: PathBuf,
     output_dir: T,
     quality: u8,
@@ -28,7 +31,7 @@ pub struct Compress<T: AsRef<Path>> {
 }
 impl<T: AsRef<Path>> Compress<T> {
     /// Creates a new compression task.
-    pub fn new(path: PathBuf, output_dir: T, quality: u8, prefix: Option<String>) -> Self
+    pub(crate) fn new(path: PathBuf, output_dir: T, quality: u8, prefix: Option<String>) -> Self
     where
         T: AsRef<Path>,
     {
@@ -40,10 +43,11 @@ impl<T: AsRef<Path>> Compress<T> {
         }
     }
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
-    pub fn compress(&self) -> anyhow::Result<String>
+    pub(crate) fn compress(&self) -> anyhow::Result<String>
     where
         T: AsRef<Path>,
     {
+        // TODO: make this output directory check into a bug check.
         if !self.output_dir.as_ref().exists() {
             eprintln!(
                 "Output directory doesn't exist: {}",

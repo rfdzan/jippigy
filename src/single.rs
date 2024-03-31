@@ -1,11 +1,12 @@
-use crate::{compress::Compress, defaults::*, HasOutputDir};
+use crate::{compress::Compress, HasImage, HasOutputDir, QUALITY};
 use colored::Colorize;
 use std::{
     io,
     marker::PhantomData,
     path::{Path, PathBuf},
 };
-pub enum HasImage {}
+/// Creates a new Single struct for compressing single images.
+#[derive(Debug, Clone)]
 pub struct SingleBuilder<IM, O, T> {
     image: T,
     quality: u8,
@@ -17,6 +18,7 @@ impl<IM, O, T> SingleBuilder<IM, O, T>
 where
     T: AsRef<Path> + Default,
 {
+    /// Output directory of image.
     pub fn output_dir(self, output_dir: T) -> SingleBuilder<IM, HasOutputDir, T> {
         SingleBuilder {
             image: self.image,
@@ -26,6 +28,8 @@ where
             _marker: PhantomData,
         }
     }
+    /// Specifies the quality of compressed images.
+    /// Defaults to 95 (95% original quality).
     pub fn with_quality(self, quality: u8) -> SingleBuilder<IM, O, T> {
         SingleBuilder {
             image: self.image,
@@ -35,6 +39,7 @@ where
             _marker: PhantomData,
         }
     }
+    /// Specifies a custom file name prefix for compressed images.
     pub fn with_prefix(self, prefix: String) -> SingleBuilder<IM, O, T> {
         SingleBuilder {
             image: self.image,
@@ -49,6 +54,7 @@ impl<T> SingleBuilder<HasImage, HasOutputDir, T>
 where
     T: AsRef<Path>,
 {
+    /// Builds a new Single with custom configurations.
     pub fn build(self) -> Single {
         Single {
             image: self.image.as_ref().to_path_buf(),
@@ -59,6 +65,7 @@ where
     }
 }
 /// Single image compressions.
+#[derive(Debug, Clone)]
 pub struct Single {
     image: PathBuf,
     quality: u8,
@@ -66,6 +73,7 @@ pub struct Single {
     default_prefix: String,
 }
 impl Single {
+    /// Creates a new Single configuration via SingleBuilder.
     pub fn builder<T: AsRef<Path> + Default>(image: T) -> SingleBuilder<HasImage, T, T> {
         SingleBuilder {
             image,
