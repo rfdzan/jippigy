@@ -71,5 +71,5 @@ mod states;
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
 pub(crate) use self::states::{HasImage, HasImageDir, HasOutputDir};
-pub(crate) use image;
-pub(crate) use tempdir;
+
+

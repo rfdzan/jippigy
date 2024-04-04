@@ -196,22 +196,20 @@ impl Parallel {
                             .collect::<Vec<_>>();
                         // lock is no longer needed past this point
                     }
-                    if let Some(direntry) = payload.pop() {
-                        if let Some(path) = direntry {
-                            match Compress::new(
-                                path.path(),
-                                thread_output_dir.clone(),
-                                self.quality,
-                                thread_custom_name.clone(),
-                            )
-                            .compress()
-                            {
-                                Err(e) => {
-                                    eprintln!("{e}");
-                                }
-                                Ok(msg) => {
-                                    println!("{msg}");
-                                }
+                    if let Some(Some(path)) = payload.pop() {
+                        match Compress::new(
+                            path.path(),
+                            thread_output_dir.clone(),
+                            self.quality,
+                            thread_custom_name.clone(),
+                        )
+                        .compress()
+                        {
+                            Err(e) => {
+                                eprintln!("{e}");
+                            }
+                            Ok(msg) => {
+                                println!("{msg}");
                             }
                         }
                     }
