@@ -14,7 +14,7 @@
 //!```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # use image::RgbImage;
-//! # use smoljpg::single::Single;
+//! # use jippigy::single::Single;
 //! # use tempdir;
 //! # use std::fs;
 //! # let temp_dir = tempdir::TempDir::new("example`").unwrap();
@@ -37,7 +37,7 @@
 //!```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # use image::RgbImage;
-//! # use smoljpg::bulk::Parallel;
+//! # use jippigy::bulk::Parallel;
 //! # use tempdir;
 //! # use std::fs;
 //! # let temp_dir = tempdir::TempDir::new("example`").unwrap();
@@ -71,3 +71,5 @@ mod states;
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
 pub(crate) use self::states::{HasImage, HasImageDir, HasOutputDir};
+pub(crate) use image;
+pub(crate) use tempdir;
