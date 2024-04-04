@@ -84,11 +84,4 @@ impl TaskArgs {
         };
         path.join(self.single.as_str())
     }
-    // / Checks command-line input.
-    // pub fn verify(&self) {
-    //     if self.quality < 1 || self.quality > 100 {
-    //         eprintln!("Quality must be between 1 and 100");
-    //         std::process::exit(1);
-    //     }
-    // }
 }

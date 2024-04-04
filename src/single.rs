@@ -1,4 +1,4 @@
-use crate::{compress::Compress, HasImage, HasOutputDir, QUALITY};
+use crate::{Compress, HasImage, HasOutputDir, QUALITY};
 use colored::Colorize;
 use std::{
     io,

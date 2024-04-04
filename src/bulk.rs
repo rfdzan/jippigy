@@ -1,4 +1,4 @@
-use crate::{compress::Compress, HasImageDir, HasOutputDir, DEVICE, QUALITY};
+use crate::{Compress, HasImageDir, HasOutputDir, DEVICE, QUALITY};
 use crossbeam::deque::Worker;
 use crossbeam::deque::{Steal, Stealer};
 use std::fs::DirEntry;
