@@ -1,72 +1,86 @@
 use colored::Colorize;
 use image::EncodableLayout;
 use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
-use std::fs::DirEntry;
 use std::io;
 use std::path::{Path, PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
-/// Compression-related work.
-pub struct Compress {
-    direntry: Option<DirEntry>,
-    dir_name: PathBuf,
-    quality: u8,
+
+#[derive(Debug, Clone, Copy)]
+struct ValidQuality(u8);
+impl ValidQuality {
+    fn val(&self) -> u8 {
+        self.0
+    }
 }
-impl Compress {
+impl From<u8> for ValidQuality {
+    fn from(value: u8) -> Self {
+        let val = {
+            let max = std::cmp::min(value, 100);
+            std::cmp::max(max, 1)
+        };
+        Self(val)
+    }
+}
+/// Compression-related work.
+#[derive(Debug, Clone)]
+pub(crate) struct Compress<T: AsRef<Path>> {
+    path: PathBuf,
+    output_dir: T,
+    quality: u8,
+    prefix: Option<String>,
+}
+impl<T: AsRef<Path>> Compress<T> {
     /// Creates a new compression task.
-    pub fn new(direntry: Option<DirEntry>, dir_name: PathBuf, quality: u8) -> Self {
-        Self {
-            direntry,
-            dir_name,
-            quality,
-        }
-    }
-    /// Start compression work.
-    pub fn do_work(self) {
-        let Some(val_direntry) = self.direntry else {
-            return;
-        };
-        match Compress::compress(val_direntry.path(), self.dir_name, self.quality, None) {
-            Err(e) => {
-                eprintln!("{e}");
-            }
-            Ok(msg) => {
-                println!("{msg}");
-            }
-        };
-    }
-    /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
-    pub fn compress<T>(
-        p: T,
-        dir: PathBuf,
-        q: u8,
-        custom_name: Option<String>,
-    ) -> anyhow::Result<String>
+    pub(crate) fn new(path: PathBuf, output_dir: T, quality: u8, prefix: Option<String>) -> Self
     where
         T: AsRef<Path>,
     {
-        let path_as_ref = p.as_ref();
+        Self {
+            path,
+            output_dir,
+            quality: ValidQuality::from(quality).val(),
+            prefix,
+        }
+    }
+    /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
+    pub(crate) fn compress(&self) -> anyhow::Result<String>
+    where
+        T: AsRef<Path>,
+    {
+        // TODO: make this output directory check into a bug check.
+        if !self.output_dir.as_ref().exists() {
+            eprintln!(
+                "Output directory doesn't exist: {}",
+                self.output_dir.as_ref().display()
+            );
+            std::process::exit(1);
+        }
+        let path_as_ref = self.path.clone();
         let filename = path_as_ref
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        let with_exif_preserved = CompressImage::new(path_as_ref, q)
+        let with_exif_preserved = CompressImage::new(path_as_ref.as_path(), self.quality)
             .read()?
             .compress()?
             .preserve_exif()?;
         let before_size = with_exif_preserved.format_size_before();
         let after_size = with_exif_preserved.format_size_after();
         let name = {
-            match custom_name {
+            match self.prefix.clone() {
                 None => filename,
                 Some(n) => n + filename.as_str(),
             }
         };
         std::fs::write(
-            dir.join(name.as_str()),
+            self.output_dir.as_ref().join(name.as_str()),
             with_exif_preserved.result().encoder().bytes(),
         )?;
-        let success_msg = format!("{name} before: {before_size} after: {after_size}");
+        let success_msg = format!(
+            "{name} before: {before_size} after: {after_size} ({}%)",
+            self.quality
+        );
         Ok(success_msg)
     }
 }

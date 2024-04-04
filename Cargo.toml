@@ -1,0 +1,19 @@
+[package]
+name = "jippigy"
+version = "0.3.0"
+edition = "2021"
+license = "MIT"
+description = "Compress images while preserving exif data. Provides multi-threaded method for compressing in bulk."
+categories = ["multimedia::images"]
+repository = "https://github.com/rfdzan/jippigy"
+keywords = ["turbojpeg", "jpeg", "compress", "image", "multimedia"]
+
+[dependencies]
+anyhow = "1.0.80"
+clap = { version = "4.5.2", features = ["derive"] }
+colored = "2.1.0"
+crossbeam = { version = "0.8.4", features = ["crossbeam-deque"] }
+image = "0.24.9"
+img-parts = "0.3.0"
+tempdir = "0.3.7"
+turbojpeg = {version = "1.0", features = ["image"]}
