@@ -1,37 +1,29 @@
-# smoljpg
-A multi-threaded JPG compression tool, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
-# Why
-DSLR Fine JPGs are quite large in size(>10MB), uploading a large number of them to social media platforms can take a lot of time.
-# How to use
-Compile it:
-```bash
-cargo build --release
-```
-Put the binary file in `PATH` so you can use it from anywhere.
-
 # Examples
-Compress with default parameters:
-```bash
-cd your_image_dir/
-smoljpg
-```
-The tool comes with the following defaults:
-1. Quality: `50`
-2. Output directory name: `compressed/`.
+Both `Single` and `Parallel` require you to use both of their respective `output_dir` methods. `with_` methods are optional.
 
-Compress with custom parameters:
-```bash
-cd your_image_dir/
-smoljpg 80
-smoljpg -o dest/ 80 #create a directory with a custom name
+## Single image compressions with `Single`
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+  Single::builder(image_path)
+    .output_dir(output_dir) // This method is required.
+    .with_quality(95)
+    .with_prefix("my_prefix_".to_string())
+    .build()
+    .do_single()?;
+    Ok(())
+}
 ```
-Compress single images:
-```bash
-smoljpg -s path/to/your/image.jpg
-```
-Single images will be stored where your current working directory is.  
-
-Help:
-```bash
-smoljpg -h
+## Multi-threaded bulk compressions with `Parallel`
+In this example, [`Parallel`] will attempt to create a separate directory `output_dir/compressed/` if it doesn't exist and save compressed images here.
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+  Parallel::builder(image_dir.clone())
+    .output_dir(image_dir.join("compressed"))? // This method is required.
+    .with_quality(95)
+    .with_prefix("my_prefix_".to_string())
+    .with_device(4) // Use 4 threads for this job.
+    .build()
+    .do_bulk()?;
+    Ok(())
+}
 ```
