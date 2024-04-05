@@ -8,7 +8,9 @@
 //!
 //! As the name implies, [`Single`] is single-threaded whereas [`Parallel`] is multi-threaded.
 //! # Examples
-//! Both [`Single`] and [`Parallel`] require you to use both of their respective `output_dir` methods. `with_` methods are optional.
+//! Both [`Single`] and [`Parallel`] require you to use both of their respective `output_dir()` methods (see: [`SingleBuilder.output_dir()`] and [`ParallelBuilder.output_dir()`] methods). `output_dir()` will return early if the directory does not exist before doing any expensive operations.
+//!
+//! `with_` methods are optional.
 
 //! ## Single image compressions with [`Single`]
 //!```rust
@@ -33,7 +35,6 @@
 //!```
 //!
 //! ## Multi-threaded bulk compressions with [`Parallel`]
-//! In this example, [`Parallel`] will attempt to create a separate directory `output_dir/compressed/` if it doesn't exist and save compressed images here.
 //!```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # use image::RgbImage;
@@ -57,7 +58,8 @@
 //!```
 //! [`Single`]: single::Single
 //! [`Parallel`]: bulk::Parallel
-
+//! [`SingleBuilder.output_dir()`]: single::SingleBuilder#output_dir
+//! [`ParallelBuilder.output_dir()`]: bulk::ParallelBuilder#output_dir
 /// Parallelization module.
 pub mod bulk;
 /// Compression module.

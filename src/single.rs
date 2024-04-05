@@ -19,6 +19,7 @@ where
     T: AsRef<Path> + Default,
 {
     /// Output directory of image.
+    /// This method is required.
     pub fn output_dir(self, output_dir: T) -> io::Result<SingleBuilder<IM, HasOutputDir, T>> {
         create_output_dir(&output_dir)?;
         Ok(SingleBuilder {
