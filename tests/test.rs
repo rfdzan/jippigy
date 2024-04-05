@@ -38,6 +38,7 @@ fn test_single() {
     let prefix = "jippigy_".to_string();
     let single = Single::builder(dummy.image_path_val())
         .output_dir(dummy.temp_dir_val())
+        .unwrap()
         .with_quality(80)
         .with_prefix(prefix.clone())
         .build()

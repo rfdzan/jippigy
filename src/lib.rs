@@ -23,7 +23,7 @@
 //! # RgbImage::new(1000, 1000).save(image_path.as_path()).unwrap();
 //! # let output_dir = temp_dir.into_path();
 //! Single::builder(image_path)
-//!     .output_dir(output_dir) // This method is required.
+//!     .output_dir(output_dir)? // This method is required.
 //!     .with_quality(95)
 //!     .with_prefix("my_prefix_".to_string())
 //!     .build()
@@ -68,8 +68,19 @@ mod defaults;
 pub mod single;
 /// Type states of structs.
 mod states;
+use std::path::Path;
+
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
 pub(crate) use self::states::{HasImage, HasImageDir, HasOutputDir};
 
-
+/// Attempt to create an output directory.
+pub(crate) fn create_output_dir(output_dir: &impl AsRef<Path>) -> std::io::Result<()> {
+    std::fs::create_dir(output_dir.as_ref()).or_else(|err| {
+        if err.kind() == std::io::ErrorKind::AlreadyExists {
+            Ok(())
+        } else {
+            Err(err)
+        }
+    })
+}

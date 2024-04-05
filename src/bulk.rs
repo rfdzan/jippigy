@@ -1,4 +1,4 @@
-use crate::{Compress, HasImageDir, HasOutputDir, DEVICE, QUALITY};
+use crate::{create_output_dir, Compress, HasImageDir, HasOutputDir, DEVICE, QUALITY};
 use crossbeam::deque::Worker;
 use crossbeam::deque::{Steal, Stealer};
 use std::fs::DirEntry;
@@ -44,7 +44,7 @@ where
         self,
         output_dir: T,
     ) -> io::Result<ParallelBuilder<HasImageDir, HasOutputDir, T>> {
-        self.create_output_dir(&output_dir)?;
+        create_output_dir(&output_dir)?;
         Ok(ParallelBuilder {
             image_dir: self.image_dir,
             quality: self.quality,
@@ -88,13 +88,6 @@ where
             prefix: self.prefix,
             _marker: PhantomData,
         }
-    }
-    /// Creates output directory. Exits if it fails.
-    fn create_output_dir(&self, output_dir: &T) -> io::Result<()> {
-        if !output_dir.as_ref().exists() {
-            std::fs::create_dir(output_dir.as_ref())?
-        }
-        Ok(())
     }
 }
 impl<T> ParallelBuilder<HasImageDir, HasOutputDir, T>
