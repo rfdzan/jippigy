@@ -121,9 +121,9 @@ impl Parallel {
     pub fn builder<T: AsRef<Path> + Default>(image_dir: T) -> ParallelBuilder<HasImageDir, T, T> {
         ParallelBuilder {
             image_dir,
-            quality: 50,
+            quality: QUALITY,
             output_dir: Default::default(),
-            device_num: 4,
+            device_num: DEVICE,
             prefix: Default::default(),
             _marker: PhantomData,
         }
