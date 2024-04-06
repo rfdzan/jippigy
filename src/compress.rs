@@ -1,7 +1,7 @@
+use anyhow::bail;
 use colored::Colorize;
 use image::EncodableLayout;
 use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
-use std::io;
 use std::path::{Path, PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 
@@ -43,19 +43,17 @@ impl<T: AsRef<Path>> Compress<T> {
         }
     }
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
-    pub(crate) fn compress(&self) -> anyhow::Result<String>
-    where
-        T: AsRef<Path>,
-    {
-        let path_as_ref = self.path.clone();
-        let filename = path_as_ref
+    pub(crate) fn compress(&self) -> anyhow::Result<String> {
+        let filename = self
+            .path
+            .clone()
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        let with_exif_preserved = CompressImage::new(path_as_ref.as_path(), self.quality)
-            .read()?
+        let with_exif_preserved = CompressImage::new(self.path.as_path(), self.quality)
             .compress()?
+            .into_preserve_exif()
             .preserve_exif()?;
         let before_size = with_exif_preserved.format_size_before();
         let after_size = with_exif_preserved.format_size_after();
@@ -67,7 +65,7 @@ impl<T: AsRef<Path>> Compress<T> {
         };
         std::fs::write(
             self.output_dir.as_ref().join(name.as_str()),
-            with_exif_preserved.result().encoder().bytes(),
+            with_exif_preserved.get_compressed_bytes()?,
         )?;
         let success_msg = format!(
             "{name} before: {before_size} after: {after_size} ({}%)",
@@ -77,6 +75,50 @@ impl<T: AsRef<Path>> Compress<T> {
     }
 }
 /// Compress an image, retaining its bytes before and after compression.
+struct PreserveExif {
+    original_bytes: Vec<u8>,
+    compressed_bytes: Vec<u8>,
+    with_exif_preserved: Vec<u8>,
+}
+impl PreserveExif {
+    /// Using the bytes retained before and after compression,
+    /// Parse EXIF information from the original bytes and write it
+    /// into the compressed bytes.
+    fn preserve_exif(self) -> anyhow::Result<Self> {
+        let original_img_parts = Jpeg::from_bytes(self.original_bytes.clone().into())?;
+        let exif = original_img_parts.exif().unwrap_or_default();
+        let icc_profile = original_img_parts.icc_profile().unwrap_or_default();
+        let mut compressed_img_part = Jpeg::from_bytes(self.compressed_bytes.into())?;
+        compressed_img_part.set_exif(exif.into());
+        compressed_img_part.set_icc_profile(icc_profile.into());
+        Ok(Self {
+            original_bytes: self.original_bytes,
+            compressed_bytes: Vec::with_capacity(0), // raw compressed bytes is no longer needed
+            with_exif_preserved: compressed_img_part.encoder().bytes().to_vec(),
+        })
+    }
+    /// Returns the compressed bytes with EXIF preserved.
+    /// Fails if EXIF has not been preserved yet.
+    fn get_compressed_bytes(self) -> anyhow::Result<Vec<u8>> {
+        if self.compressed_bytes.is_empty() && !self.with_exif_preserved.is_empty() {
+            Ok(self.with_exif_preserved)
+        } else {
+            bail!("BUG: EXIF is not preserved.".red());
+        }
+    }
+    /// Pretty formatting for original image size.
+    fn format_size_before(&self) -> colored::ColoredString {
+        let in_mbytes = (self.original_bytes.len()) as f64 / 1_000_000.0;
+        let as_string = format!("{:.2} MB", in_mbytes);
+        as_string.bright_red()
+    }
+    /// Pretty formatting for compressed image size.
+    fn format_size_after(&self) -> colored::ColoredString {
+        let in_mbytes = (self.compressed_bytes.len()) as f64 / 1_000_000.0;
+        let as_string = format!("{:.2} MB", in_mbytes);
+        as_string.green()
+    }
+}
 struct CompressImage<'a> {
     p: &'a Path,
     q: u8,
@@ -93,72 +135,20 @@ impl<'a> CompressImage<'a> {
             compressed_bytes: Vec::new(),
         }
     }
-    /// Reads image file into Vec<u8>, returning Self.
-    fn read(mut self) -> io::Result<Self> {
-        self.original_bytes = std::fs::read(self.p)?;
-        Ok(self)
-    }
-    /// Compress image file and retains the compressed bytes, returning Self.
+    /// Compresses image file, retaining original and compressed bytes. Returns self.
     fn compress(mut self) -> anyhow::Result<Self> {
+        self.original_bytes = std::fs::read(self.p)?;
         let image: image::RgbImage = decompress_image(self.original_bytes.as_bytes())?;
         let jpeg_data = compress_image(&image, i32::from(self.q), Sub2x2)?;
         self.compressed_bytes = jpeg_data.as_bytes().to_owned();
         Ok(self)
     }
-    /// Using the bytes retained before and after compression,
-    /// Parse EXIF information from the original bytes and write it
-    /// into the compressed bytes. Returns a `img_parts::jpeg::Jpeg`
-    /// which we can convert later to a Byte.
-    fn preserve_exif(self) -> anyhow::Result<CompressionResult> {
-        let before_size = self.original_bytes.len();
-        let after_size = self.compressed_bytes.len();
-        let original_img_parts = Jpeg::from_bytes(self.original_bytes.into())?;
-        let exif = original_img_parts.exif().unwrap_or_default();
-        let icc_profile = original_img_parts.icc_profile().unwrap_or_default();
-        let mut compressed_img_part = Jpeg::from_bytes(self.compressed_bytes.into())?;
-        compressed_img_part.set_exif(exif.into());
-        compressed_img_part.set_icc_profile(icc_profile.into());
-        Ok(CompressionResult::store(
-            compressed_img_part,
-            before_size,
-            after_size,
-        ))
-    }
-}
-/// Contains the result of compressed image
-struct CompressionResult {
-    compressed_img: img_parts::jpeg::Jpeg,
-    before_length: usize,
-    after_length: usize,
-}
-impl CompressionResult {
-    /// Store the result of compressed image,
-    /// along with additional information.
-    fn store(
-        compressed_img: img_parts::jpeg::Jpeg,
-        before_length: usize,
-        after_length: usize,
-    ) -> Self {
-        Self {
-            compressed_img,
-            before_length,
-            after_length,
+    /// Produce PreserveExif.
+    fn into_preserve_exif(self) -> PreserveExif {
+        PreserveExif {
+            original_bytes: self.original_bytes,
+            compressed_bytes: self.compressed_bytes,
+            with_exif_preserved: Vec::new(),
         }
-    }
-    /// Returns the compressed image as a `img_parts_jpeg::Jpeg`.
-    fn result(self) -> img_parts::jpeg::Jpeg {
-        self.compressed_img
-    }
-    /// Pretty formatting for original image size.
-    fn format_size_before(&self) -> colored::ColoredString {
-        let in_mbytes = (self.before_length) as f64 / 1_000_000.0;
-        let as_string = format!("{:.2} MB", in_mbytes);
-        as_string.bright_red()
-    }
-    /// Pretty formatting for compressed image size.
-    fn format_size_after(&self) -> colored::ColoredString {
-        let in_mbytes = (self.after_length) as f64 / 1_000_000.0;
-        let as_string = format!("{:.2} MB", in_mbytes);
-        as_string.green()
     }
 }
