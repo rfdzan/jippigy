@@ -63,10 +63,11 @@ impl<T: AsRef<Path>> Compress<T> {
                 Some(n) => n + filename.as_str(),
             }
         };
-        std::fs::write(
-            self.output_dir.as_ref().join(name.as_str()),
-            with_exif_preserved.get_compressed_bytes()?,
-        )?;
+        let to_write = with_exif_preserved.get_compressed_bytes().map_err(|e| {
+            eprintln!("{e}");
+            e.context(format!("at: {}:{}:{}", file!(), line!(), column!()))
+        })?;
+        std::fs::write(self.output_dir.as_ref().join(name.as_str()), to_write)?;
         let success_msg = format!(
             "{name} before: {before_size} after: {after_size} ({}%)",
             self.quality
@@ -99,7 +100,7 @@ impl PreserveExif {
     }
     /// Returns the compressed bytes with EXIF preserved.
     /// Fails if EXIF has not been preserved yet.
-    fn get_compressed_bytes(self) -> anyhow::Result<Vec<u8>> {
+    fn get_compressed_bytes(self) -> Result<Vec<u8>, anyhow::Error> {
         if self.compressed_bytes.is_empty() && !self.with_exif_preserved.is_empty() {
             Ok(self.with_exif_preserved)
         } else {
