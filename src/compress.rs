@@ -115,7 +115,7 @@ impl PreserveExif {
     }
     /// Pretty formatting for compressed image size.
     fn format_size_after(&self) -> colored::ColoredString {
-        let in_mbytes = (self.compressed_bytes.len()) as f64 / 1_000_000.0;
+        let in_mbytes = (self.with_exif_preserved.len()) as f64 / 1_000_000.0;
         let as_string = format!("{:.2} MB", in_mbytes);
         as_string.green()
     }
