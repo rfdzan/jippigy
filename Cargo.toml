@@ -7,6 +7,8 @@ description = "Compress images while preserving exif data. Provides multi-thread
 categories = ["multimedia::images"]
 repository = "https://github.com/rfdzan/jippigy"
 keywords = ["turbojpeg", "jpeg", "compress", "image", "multimedia"]
+readme = "README.md"
+exclude = ["src/main.rs"]
 
 [dependencies]
 anyhow = "1.0.80"
