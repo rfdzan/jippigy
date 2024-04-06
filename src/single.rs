@@ -1,4 +1,4 @@
-use crate::{Compress, HasImage, HasOutputDir, QUALITY};
+use crate::{create_output_dir, Compress, HasImage, HasOutputDir, QUALITY};
 use colored::Colorize;
 use std::{
     io,
@@ -19,14 +19,16 @@ where
     T: AsRef<Path> + Default,
 {
     /// Output directory of image.
-    pub fn output_dir(self, output_dir: T) -> SingleBuilder<IM, HasOutputDir, T> {
-        SingleBuilder {
+    /// This method is required.
+    pub fn output_dir(self, output_dir: T) -> io::Result<SingleBuilder<IM, HasOutputDir, T>> {
+        create_output_dir(&output_dir)?;
+        Ok(SingleBuilder {
             image: self.image,
             quality: self.quality,
             output_dir,
             prefix: self.prefix,
             _marker: PhantomData,
-        }
+        })
     }
     /// Specifies the quality of compressed images.
     /// Defaults to 95 (95% original quality).

@@ -5,7 +5,7 @@ Both `Single` and `Parallel` require you to use both of their respective `output
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   Single::builder(image_path)
-    .output_dir(output_dir) // This method is required.
+    .output_dir(output_dir)? // This method is required.
     .with_quality(95)
     .with_prefix("my_prefix_".to_string())
     .build()
