@@ -85,8 +85,8 @@ impl Single {
         }
     }
     /// Compress a single image.
-    pub fn do_single(self) -> io::Result<()> {
-        self.exists().compress();
+    pub fn compress(self) -> io::Result<()> {
+        self.exists().do_single();
         Ok(())
     }
     /// Check whether or not image exists.
@@ -108,7 +108,7 @@ impl Single {
         self
     }
     /// Compress a single image.
-    fn compress(self) {
+    fn do_single(self) {
         let prefix = {
             if self.default_prefix.is_empty() {
                 None

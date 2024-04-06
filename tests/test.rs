@@ -42,7 +42,7 @@ fn test_single() {
         .with_quality(80)
         .with_prefix(prefix.clone())
         .build()
-        .do_single();
+        .compress();
     assert!(single.is_ok());
     assert!(check_prefix_and_existence(dummy, prefix, false, None));
 }
@@ -63,7 +63,7 @@ fn test_parallel() {
             .with_prefix(prefix.clone())
             .with_device(4) // Use 4 threads for this job.
             .build()
-            .do_bulk();
+            .compress();
         assert!(with_additional_parameters.is_ok());
         assert!(check_prefix_and_existence(
             dummy,

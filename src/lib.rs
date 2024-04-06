@@ -27,7 +27,7 @@
 //!     .with_quality(95)
 //!     .with_prefix("my_prefix_".to_string())
 //!     .build()
-//!     .do_single()?;
+//!     .compress()?;
 //! # Ok(())
 //! # }
 //!```
@@ -51,7 +51,7 @@
 //!     .with_prefix("my_prefix_".to_string())
 //!     .with_device(4) // Use 4 threads for this job.
 //!     .build()
-//!     .do_bulk()?;
+//!     .compress()?;
 //! # Ok(())
 //! # }
 //!```

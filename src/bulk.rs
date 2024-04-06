@@ -129,7 +129,7 @@ impl Parallel {
         }
     }
     /// Compress images in parallel.
-    pub fn do_bulk(mut self) -> io::Result<()> {
+    pub fn compress(mut self) -> io::Result<()> {
         let main_worker = Worker::new_fifo();
         for _ in 0..self.device_num {
             self.stealers.push(main_worker.stealer());
