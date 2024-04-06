@@ -47,14 +47,6 @@ impl<T: AsRef<Path>> Compress<T> {
     where
         T: AsRef<Path>,
     {
-        // TODO: make this output directory check into a bug check.
-        if !self.output_dir.as_ref().exists() {
-            eprintln!(
-                "Output directory doesn't exist: {}",
-                self.output_dir.as_ref().display()
-            );
-            std::process::exit(1);
-        }
         let path_as_ref = self.path.clone();
         let filename = path_as_ref
             .file_name()
