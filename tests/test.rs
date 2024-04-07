@@ -80,16 +80,14 @@ fn check_prefix_and_existence(
     dir: Option<&str>,
 ) -> bool {
     if !parallel {
-        let file = dummy
-            .temp_dir_val()
-            .join(expected.to_string() + "example_jpeg.jpg");
+        let file = dummy.temp_dir_val().join(expected + "example_jpeg.jpg");
         println!("{}", file.display());
         file.exists()
     } else {
         let file = dummy
             .temp_dir_val()
             .join(dir.unwrap_or_default())
-            .join(expected.to_string() + "example_jpeg.jpg");
+            .join(expected + "example_jpeg.jpg");
         println!("{}", file.display());
         file.exists()
     }
