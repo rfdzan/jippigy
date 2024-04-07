@@ -1,5 +1,5 @@
 # jippigy
-A multi-threaded image compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
+A multi-threaded JPEG compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 
 This crate provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
 
@@ -9,9 +9,11 @@ The problem is typically related to `turbojpeg-sys` (see this [question](https:/
 To successfully build `turbojpeg-sys`, you need to install `cmake`, a C compiler (gcc, clang, etc.), and NASM in your system (See: [`turbojpeg`](https://github.com/honzasp/rust-turbojpeg)'s [requirements](https://github.com/honzasp/rust-turbojpeg?tab=readme-ov-file#requirements)). For more details, see [`turbojpeg-sys`](https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys)'s [`Building`](https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys#building) section.
 
 # Examples
-Both `Single` and `Parallel` require you to use both of their respective `output_dir` methods. `with_` methods are optional.
+Both `Single` and `Parallel` require you to use both of their respective `output_dir()` methods. `output_dir()` will attempt to create the directory if it doesn't exist. If it fails, it will return with an error before doing any expensive operations.
 
-## Single image compressions with `Single`
+`with_` methods are optional.
+
+## Single JPEG compressions with `Single`
 ```rust
 const IMAGE_DIR: &str = "/your/image/dir/";
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,6 +32,7 @@ In this example, `Parallel` will attempt to create a separate directory `your/im
 ```rust
 const IMAGE_DIR: &str = "/your/image/dir/";
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let image_dir_path = PathBuf::from(IMAGE_DIR);
     let _parallel = Parallel::builder(image_dir_path.clone())
         .output_dir(image_dir_path.join("compressed"))? // This method is required.
         .with_prefix("jippigy_".to_string())
