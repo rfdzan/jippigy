@@ -86,30 +86,16 @@ impl Single {
         }
     }
     /// Compress a single image.
-    pub fn compress(self) -> io::Result<()> {
-        self.exists().do_single();
-        Ok(())
+    pub fn compress(self) -> anyhow::Result<Vec<u8>> {
+        self.exists()?.do_single()
     }
     /// Check whether or not image exists.
-    fn exists(self) -> Self {
-        if !self.image.exists() {
-            eprintln!(
-                "File does not exist: {}. Maybe there's a {}?\nInclude the extension {} as well.",
-                self.image
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string()
-                    .red(),
-                "typo".to_string().yellow(),
-                ".jpg/.JPG/.jpeg/.JPEG".to_string().green()
-            );
-            std::process::exit(1);
-        }
-        self
+    fn exists(self) -> io::Result<Self> {
+        std::fs::File::open(self.image.as_path())?;
+        Ok(self)
     }
     /// Compress a single image.
-    fn do_single(self) {
+    fn do_single(self) -> anyhow::Result<Vec<u8>> {
         let prefix = {
             if self.default_prefix.is_empty() {
                 None
@@ -117,9 +103,6 @@ impl Single {
                 Some(self.default_prefix)
             }
         };
-        match Compress::new(self.image, self.output_dir, self.quality, prefix).compress() {
-            Err(e) => eprintln!("{e}"),
-            Ok(msg) => println!("{msg}"),
-        }
+        Compress::new(self.image, self.output_dir, self.quality, prefix).compress()
     }
 }

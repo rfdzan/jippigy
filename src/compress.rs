@@ -43,7 +43,7 @@ impl<T: AsRef<Path>> Compress<T> {
         }
     }
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
-    pub(crate) fn compress(&self) -> anyhow::Result<String> {
+    pub(crate) fn compress(&self) -> Result<Vec<u8>, anyhow::Error> {
         let filename = self
             .path
             .clone()
@@ -55,24 +55,24 @@ impl<T: AsRef<Path>> Compress<T> {
             .compress()?
             .into_preserve_exif()
             .preserve_exif()?;
-        let before_size = with_exif_preserved.format_size_before();
-        let after_size = with_exif_preserved.format_size_after();
-        let name = {
-            match self.prefix.clone() {
-                None => filename,
-                Some(n) => n + filename.as_str(),
-            }
-        };
+        // let before_size = with_exif_preserved.format_size_before();
+        // let after_size = with_exif_preserved.format_size_after();
+        // let name = {
+        //     match self.prefix.clone() {
+        //         None => filename,
+        //         Some(n) => n + filename.as_str(),
+        //     }
+        // };
         let to_write = with_exif_preserved.get_compressed_bytes().map_err(|e| {
             eprintln!("{e}");
             e.context(format!("at: {}:{}:{}", file!(), line!(), column!()))
-        })?;
-        std::fs::write(self.output_dir.as_ref().join(name.as_str()), to_write)?;
-        let success_msg = format!(
-            "{name} before: {before_size} after: {after_size} ({}%)",
-            self.quality
-        );
-        Ok(success_msg)
+        });
+        // std::fs::write(self.output_dir.as_ref().join(name.as_str()), to_write)?;
+        // let success_msg = format!(
+        //     "{name} before: {before_size} after: {after_size} ({}%)",
+        //     self.quality
+        // );
+        to_write
     }
 }
 /// Compress an image, retaining its bytes before and after compression.
