@@ -77,12 +77,28 @@ mod defaults;
 pub mod single;
 /// Type states of structs.
 mod states;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use image::EncodableLayout;
 
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
 pub(crate) use self::states::{HasImage, HasImageDir, HasOutputDir};
-
+pub struct CompressionResult {
+    path: PathBuf,
+    bytes: Vec<u8>,
+}
+impl CompressionResult {
+    pub(crate) fn new(path: PathBuf, bytes: Vec<u8>) -> Self {
+        Self { path, bytes }
+    }
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
+    }
+    pub fn bytes(&self) -> &[u8] {
+        self.bytes.as_bytes()
+    }
+}
 /// Attempt to create an output directory.
 pub(crate) fn create_output_dir(output_dir: &impl AsRef<Path>) -> std::io::Result<()> {
     std::fs::create_dir(output_dir.as_ref()).or_else(|err| {

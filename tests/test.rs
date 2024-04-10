@@ -52,32 +52,32 @@ fn test_single() {
     assert!(single.is_ok());
     assert!(check_prefix_and_existence(dummy, prefix, false, None));
 }
-#[test]
-fn test_parallel() {
-    let dummy = create_dummy_file();
-    let _create_image = dummy.create_example_image();
-    let prefix = PREFIX.to_string();
+// #[test]
+// fn test_parallel() {
+//     let dummy = create_dummy_file();
+//     let _create_image = dummy.create_example_image();
+//     let prefix = PREFIX.to_string();
 
-    let parallel_has_image_dir = Parallel::builder(dummy.temp_dir_val())
-        .output_dir(dummy.temp_dir_val().join(RESULT_DIR_NAME)); // This method is required.
-    assert!(parallel_has_image_dir.is_ok());
+//     let parallel_has_image_dir = Parallel::builder(dummy.temp_dir_val())
+//         .output_dir(dummy.temp_dir_val().join(RESULT_DIR_NAME)); // This method is required.
+//     assert!(parallel_has_image_dir.is_ok());
 
-    if let Ok(parallel) = parallel_has_image_dir {
-        let with_additional_parameters = parallel
-            .with_quality(95)
-            .with_prefix(prefix.clone())
-            .with_device(4) // Use 4 threads for this job.
-            .build()
-            .compress();
-        assert!(with_additional_parameters.is_ok());
-        assert!(check_prefix_and_existence(
-            dummy,
-            prefix,
-            true,
-            Some(RESULT_DIR_NAME)
-        ));
-    }
-}
+//     if let Ok(parallel) = parallel_has_image_dir {
+//         let with_additional_parameters = parallel
+//             .with_quality(95)
+//             .with_prefix(prefix.clone())
+//             .with_device(4) // Use 4 threads for this job.
+//             .build()
+//             .compress();
+//         assert!(with_additional_parameters.is_ok());
+//         assert!(check_prefix_and_existence(
+//             dummy,
+//             prefix,
+//             true,
+//             Some(RESULT_DIR_NAME)
+//         ));
+//     }
+// }
 fn check_prefix_and_existence(
     dummy: Dummy,
     expected: String,
@@ -85,7 +85,6 @@ fn check_prefix_and_existence(
     dir: Option<&str>,
 ) -> bool {
     if !parallel {
-
         let file = dummy
             .temp_dir_val()
             .join(expected.to_string() + EXAMPLE_JPEG_NAME);

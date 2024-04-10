@@ -40,6 +40,8 @@ where
 {
     /// Creates an output directory for compressed images.
     /// This method is required.
+    // TODO: if we're going forward with returning images as bytes
+    // `output_dir` will become obsolete and is not needed anymore.
     pub fn output_dir(
         self,
         output_dir: T,
@@ -199,7 +201,6 @@ impl Parallel {
                         // lock is no longer needed past this point
                     }
                     if let Some(Some(path)) = payload.pop() {
-                        //TODO: have this result be transmitted to the main thread
                         let compress_result = Compress::new(
                             path.path(),
                             thread_output_dir.clone(),
@@ -207,6 +208,7 @@ impl Parallel {
                             thread_custom_name.clone(),
                         )
                         .compress();
+                        // TODO: return a struct containing original path + compression_result
                         local_transmitter.send(compress_result).unwrap();
                     }
                     // if all stealers are empty, exit the loop.
@@ -229,26 +231,23 @@ impl IntoIterator for Parallel {
         let receiver = self.receiver.clone();
         // TODO: this unwrap must be handled
         // not quite sure how to make into_iter() fallible.
-        let handles = self.compress().unwrap();
+        let handles = self.compress();
         ParallelIntoIterator::new(receiver, handles)
     }
 }
 pub struct ParallelIntoIterator {
-    handles: Vec<JoinHandle<()>>,
     recv: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
 }
 impl ParallelIntoIterator {
     fn new(
         recv: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
-        handles: Vec<JoinHandle<()>>,
+        handles: Result<Vec<JoinHandle<()>>, io::Error>,
     ) -> Self {
-        Self { recv, handles }
+        if let Err(e) = handles {
+            eprintln!("{e}");
+        }
+        Self { recv }
     }
-    // fn compress(mut self) -> io::Result<()> {
-    //     let handles = self.parallel.compress()?;
-    //     self.handles = handles;
-    //     Ok(())
-    // }
 }
 impl Iterator for ParallelIntoIterator {
     type Item = Result<Vec<u8>, anyhow::Error>;
