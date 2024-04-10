@@ -2,13 +2,19 @@ use image::RgbImage;
 use jippigy::{bulk::Parallel, single::Single};
 use std::fs;
 use std::path::PathBuf;
+
+const EXAMPLE_JPEG_NAME: &str = "example_jpeg.jpg";
+const PREFIX: &str = "jippigy_";
+const TEMP_DIR_NAME: &str = "example";
+const RESULT_DIR_NAME: &str = "compressed";
+
 struct Dummy {
     temp_dir: tempdir::TempDir,
     image_path: PathBuf,
 }
 impl Dummy {
     fn new(temp_dir: tempdir::TempDir) -> Self {
-        let image_path = temp_dir.path().join("example_jpeg.jpg");
+        let image_path = temp_dir.path().join(EXAMPLE_JPEG_NAME);
         Self {
             temp_dir,
             image_path,
@@ -28,14 +34,14 @@ impl Dummy {
     }
 }
 fn create_dummy_file() -> Dummy {
-    let temp_dir = tempdir::TempDir::new("example").unwrap();
+    let temp_dir = tempdir::TempDir::new(TEMP_DIR_NAME).unwrap();
     Dummy::new(temp_dir)
 }
 #[test]
 fn test_single() {
     let dummy = create_dummy_file();
     let _create_image = dummy.create_example_image();
-    let prefix = "jippigy_".to_string();
+    let prefix = PREFIX.to_string();
     let single = Single::builder(dummy.image_path_val())
         .output_dir(dummy.temp_dir_val())
         .unwrap()
@@ -50,11 +56,10 @@ fn test_single() {
 fn test_parallel() {
     let dummy = create_dummy_file();
     let _create_image = dummy.create_example_image();
-    let result_dir = "compressed";
-    let prefix = "jippigy_".to_string();
+    let prefix = PREFIX.to_string();
 
-    let parallel_has_image_dir =
-        Parallel::builder(dummy.temp_dir_val()).output_dir(dummy.temp_dir_val().join(result_dir)); // This method is required.
+    let parallel_has_image_dir = Parallel::builder(dummy.temp_dir_val())
+        .output_dir(dummy.temp_dir_val().join(RESULT_DIR_NAME)); // This method is required.
     assert!(parallel_has_image_dir.is_ok());
 
     if let Ok(parallel) = parallel_has_image_dir {
@@ -69,7 +74,7 @@ fn test_parallel() {
             dummy,
             prefix,
             true,
-            Some(result_dir)
+            Some(RESULT_DIR_NAME)
         ));
     }
 }
@@ -80,16 +85,17 @@ fn check_prefix_and_existence(
     dir: Option<&str>,
 ) -> bool {
     if !parallel {
+
         let file = dummy
             .temp_dir_val()
-            .join(expected.to_string() + "example_jpeg.jpg");
+            .join(expected.to_string() + EXAMPLE_JPEG_NAME);
         println!("{}", file.display());
         file.exists()
     } else {
         let file = dummy
             .temp_dir_val()
             .join(dir.unwrap_or_default())
-            .join(expected.to_string() + "example_jpeg.jpg");
+            .join(expected.to_string() + EXAMPLE_JPEG_NAME);
         println!("{}", file.display());
         file.exists()
     }

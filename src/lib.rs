@@ -1,5 +1,5 @@
 #![warn(missing_docs)]
-//! A multi-threaded image compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
+//! A multi-threaded JPEG compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 //!
 //! This crate provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
 //!
@@ -12,7 +12,7 @@
 //!
 //!To successfully build `turbojpeg-sys`, you need to install `cmake`, a C compiler (gcc, clang, etc.), and NASM in your system (See: [`turbojpeg`]'s [requirements](https://github.com/honzasp/rust-turbojpeg?tab=readme-ov-file#requirements)). For more details, see [`turbojpeg-sys`]'s [`Building`] section.
 //! # Examples
-//! Both [`Single`] and [`Parallel`] require you to use both of their respective `output_dir()` methods (see: [`SingleBuilder.output_dir()`] and [`ParallelBuilder.output_dir()`] methods). `output_dir()` will return early if the directory does not exist before doing any expensive operations.
+//! Both [`Single`] and [`Parallel`] require you to use both of their respective `output_dir()` methods (see: [`SingleBuilder.output_dir()`] and [`ParallelBuilder.output_dir()`] methods). `output_dir()` will attempt to create the directory if it doesn't exist. If it fails, it will return with an error before doing any expensive operations.
 //!
 //! `with_` methods are optional.
 
