@@ -85,6 +85,7 @@ fn check_prefix_and_existence(
     dir: Option<&str>,
 ) -> bool {
     if !parallel {
+
         let file = dummy
             .temp_dir_val()
             .join(expected.to_string() + EXAMPLE_JPEG_NAME);
