@@ -7,23 +7,23 @@ use std::{
 };
 /// Creates a new Single struct for compressing single images.
 #[derive(Debug, Clone)]
-pub struct SingleBuilder<IM, O, T> {
-    image: T,
+pub struct SingleBuilder<'a, IM, O, T> {
+    bytes: &'a [u8],
     quality: u8,
     output_dir: T,
     prefix: String,
     _marker: PhantomData<fn() -> (IM, O)>,
 }
-impl<IM, O, T> SingleBuilder<IM, O, T>
+impl<'a, IM, O, T> SingleBuilder<'a, IM, O, T>
 where
     T: AsRef<Path> + Default,
 {
     /// Output directory of image.
     /// This method is required.
-    pub fn output_dir(self, output_dir: T) -> io::Result<SingleBuilder<IM, HasOutputDir, T>> {
+    pub fn output_dir(self, output_dir: T) -> io::Result<SingleBuilder<'a, IM, HasOutputDir, T>> {
         create_output_dir(&output_dir)?;
         Ok(SingleBuilder {
-            image: self.image,
+            bytes: self.bytes,
             quality: self.quality,
             output_dir,
             prefix: self.prefix,
@@ -32,9 +32,9 @@ where
     }
     /// Specifies the quality of compressed images.
     /// Defaults to 95 (95% original quality).
-    pub fn with_quality(self, quality: u8) -> SingleBuilder<IM, O, T> {
+    pub fn with_quality(self, quality: u8) -> SingleBuilder<'a, IM, O, T> {
         SingleBuilder {
-            image: self.image,
+            bytes: self.bytes,
             quality,
             output_dir: self.output_dir,
             prefix: self.prefix,
@@ -42,9 +42,9 @@ where
         }
     }
     /// Specifies a custom file name prefix for compressed images.
-    pub fn with_prefix(self, prefix: String) -> SingleBuilder<IM, O, T> {
+    pub fn with_prefix(self, prefix: String) -> SingleBuilder<'a, IM, O, T> {
         SingleBuilder {
-            image: self.image,
+            bytes: self.bytes,
             quality: self.quality,
             output_dir: self.output_dir,
             prefix,
@@ -52,14 +52,14 @@ where
         }
     }
 }
-impl<T> SingleBuilder<HasImage, HasOutputDir, T>
+impl<'a, T> SingleBuilder<'a, HasImage, HasOutputDir, T>
 where
     T: AsRef<Path>,
 {
     /// Builds a new Single with custom configurations.
-    pub fn build(self) -> Single {
+    pub fn build(self) -> Single<'a> {
         Single {
-            image: self.image.as_ref().to_path_buf(),
+            bytes: self.bytes,
             quality: self.quality,
             output_dir: self.output_dir.as_ref().to_path_buf(),
             default_prefix: self.prefix,
@@ -68,17 +68,17 @@ where
 }
 /// Single image compressions.
 #[derive(Debug, Clone)]
-pub struct Single {
-    image: PathBuf,
+pub struct Single<'a> {
+    bytes: &'a [u8],
     quality: u8,
     output_dir: PathBuf,
     default_prefix: String,
 }
-impl Single {
+impl<'a> Single<'a> {
     /// Creates a new Single configuration via SingleBuilder.
-    pub fn builder<T: AsRef<Path> + Default>(image: T) -> SingleBuilder<HasImage, T, T> {
+    pub fn from_bytes<T: AsRef<Path> + Default>(bytes: &'a [u8]) -> SingleBuilder<HasImage, T, T> {
         SingleBuilder {
-            image,
+            bytes,
             quality: QUALITY,
             output_dir: Default::default(),
             prefix: Default::default(),
@@ -87,13 +87,13 @@ impl Single {
     }
     /// Compress a single image.
     pub fn compress(self) -> anyhow::Result<Vec<u8>> {
-        self.exists()?.do_single()
+        self.do_single()
     }
-    /// Check whether or not image exists.
-    fn exists(self) -> io::Result<Self> {
-        std::fs::File::open(self.image.as_path())?;
-        Ok(self)
-    }
+    // /// Check whether or not image exists.
+    // fn exists(self) -> io::Result<Self> {
+    //     std::fs::File::open(self.image.as_path())?;
+    //     Ok(self)
+    // }
     /// Compress a single image.
     fn do_single(self) -> anyhow::Result<Vec<u8>> {
         let prefix = {
@@ -103,6 +103,6 @@ impl Single {
                 Some(self.default_prefix)
             }
         };
-        Compress::new(self.image, self.output_dir, self.quality, prefix).compress()
+        Compress::new(self.bytes.to_vec(), self.output_dir, self.quality, prefix).compress()
     }
 }
