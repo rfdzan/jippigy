@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+// #![warn(missing_docs)]
 //! A multi-threaded JPEG compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 //!
 //! This crate provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
@@ -75,19 +75,16 @@ mod compress;
 mod defaults;
 /// Single-image tasks.
 pub mod single;
-/// Type states of structs.
-mod states;
 use std::path::{Path, PathBuf};
-
-use image::EncodableLayout;
 
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
-pub(crate) use self::states::{HasImage, HasImageDir, HasOutputDir};
+#[derive(Debug, Clone)]
 pub struct CompressionResult {
     path: PathBuf,
     bytes: Vec<u8>,
 }
+#[allow(dead_code)]
 impl CompressionResult {
     pub(crate) fn new(path: PathBuf, bytes: Vec<u8>) -> Self {
         Self { path, bytes }
@@ -96,16 +93,6 @@ impl CompressionResult {
         self.path.as_path()
     }
     pub fn bytes(&self) -> &[u8] {
-        self.bytes.as_bytes()
+        self.bytes.as_slice()
     }
-}
-/// Attempt to create an output directory.
-pub(crate) fn create_output_dir(output_dir: &impl AsRef<Path>) -> std::io::Result<()> {
-    std::fs::create_dir(output_dir.as_ref()).or_else(|err| {
-        if err.kind() == std::io::ErrorKind::AlreadyExists {
-            Ok(())
-        } else {
-            Err(err)
-        }
-    })
 }

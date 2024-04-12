@@ -4,7 +4,6 @@ use std::fs;
 use std::path::PathBuf;
 
 const EXAMPLE_JPEG_NAME: &str = "example_jpeg.jpg";
-const PREFIX: &str = "jippigy_";
 const TEMP_DIR_NAME: &str = "example";
 const RESULT_DIR_NAME: &str = "compressed";
 
@@ -39,12 +38,8 @@ fn create_dummy_file() -> Dummy {
 fn test_single() {
     let dummy = create_dummy_file();
     let _create_image = dummy.create_example_image();
-    let prefix = PREFIX.to_string();
     let single = Single::from_bytes(dummy.create_example_image().as_slice())
-        .output_dir(dummy.temp_dir_val())
-        .unwrap()
         .with_quality(80)
-        .with_prefix(prefix.clone())
         .build()
         .compress();
     assert!(single.is_ok());
@@ -76,24 +71,24 @@ fn test_single() {
 //         ));
 //     }
 // }
-fn check_prefix_and_existence(
-    dummy: Dummy,
-    expected: String,
-    parallel: bool,
-    dir: Option<&str>,
-) -> bool {
-    if !parallel {
-        let file = dummy
-            .temp_dir_val()
-            .join(expected.to_string() + EXAMPLE_JPEG_NAME);
-        println!("{}", file.display());
-        file.exists()
-    } else {
-        let file = dummy
-            .temp_dir_val()
-            .join(dir.unwrap_or_default())
-            .join(expected.to_string() + EXAMPLE_JPEG_NAME);
-        println!("{}", file.display());
-        file.exists()
-    }
-}
+// fn check_prefix_and_existence(
+//     dummy: Dummy,
+//     expected: String,
+//     parallel: bool,
+//     dir: Option<&str>,
+// ) -> bool {
+//     if !parallel {
+//         let file = dummy
+//             .temp_dir_val()
+//             .join(expected.to_string() + EXAMPLE_JPEG_NAME);
+//         println!("{}", file.display());
+//         file.exists()
+//     } else {
+//         let file = dummy
+//             .temp_dir_val()
+//             .join(dir.unwrap_or_default())
+//             .join(expected.to_string() + EXAMPLE_JPEG_NAME);
+//         println!("{}", file.display());
+//         file.exists()
+//     }
+// }

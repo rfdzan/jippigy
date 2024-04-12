@@ -1,106 +1,48 @@
-use crate::{create_output_dir, Compress, HasImageDir, HasOutputDir, DEVICE, QUALITY};
+use crate::{Compress, DEVICE, QUALITY};
 use crossbeam::channel;
 use crossbeam::deque::Worker;
 use crossbeam::deque::{Steal, Stealer};
 use std::io;
-use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time;
 /// Custom configuration for building a Parallel.
 #[derive(Debug, Clone)]
-pub struct ParallelBuilder<IM, O, T> {
+pub struct ParallelBuilder {
     vec: Vec<Vec<u8>>,
-    image_dir: T,
     quality: u8,
-    output_dir: T,
     device_num: u8,
-    prefix: String,
-    _marker: PhantomData<fn() -> (IM, O)>,
 }
-impl<IM, O, T> Default for ParallelBuilder<IM, O, T>
-where
-    T: AsRef<Path> + Default,
-{
+impl Default for ParallelBuilder {
     fn default() -> Self {
         Self {
             vec: Default::default(),
-            image_dir: Default::default(),
             quality: QUALITY,
-            output_dir: Default::default(),
             device_num: DEVICE,
-            prefix: Default::default(),
-            _marker: Default::default(),
         }
     }
 }
-impl<IM, O, T> ParallelBuilder<IM, O, T>
-where
-    T: AsRef<Path> + Default,
-{
-    /// Creates an output directory for compressed images.
-    /// This method is required.
-    // TODO: if we're going forward with returning images as bytes
-    // `output_dir` will become obsolete and is not needed anymore.
-    pub fn output_dir(
-        self,
-        output_dir: T,
-    ) -> io::Result<ParallelBuilder<HasImageDir, HasOutputDir, T>> {
-        create_output_dir(&output_dir)?;
-        Ok(ParallelBuilder {
-            vec: self.vec,
-            image_dir: self.image_dir,
-            quality: self.quality,
-            output_dir,
-            device_num: self.device_num,
-            prefix: self.prefix,
-            _marker: PhantomData,
-        })
-    }
+impl ParallelBuilder {
     /// Specifies the quality of compressed images.
     /// Defaults to 95 (95% of the original quality).
-    pub fn with_quality(self, quality: u8) -> ParallelBuilder<HasImageDir, O, T> {
+    pub fn with_quality(self, quality: u8) -> ParallelBuilder {
         ParallelBuilder {
             vec: self.vec,
-            image_dir: self.image_dir,
             quality,
             device_num: self.device_num,
-            output_dir: self.output_dir,
-            prefix: self.prefix,
-            _marker: PhantomData,
-        }
-    }
-    /// Specifies a custom file name prefix for compressed images.
-    pub fn with_prefix(self, prefix: String) -> ParallelBuilder<IM, O, T> {
-        ParallelBuilder {
-            image_dir: self.image_dir,
-            vec: self.vec,
-            quality: self.quality,
-            device_num: self.device_num,
-            output_dir: self.output_dir,
-            prefix,
-            _marker: PhantomData,
         }
     }
     /// Specifies the number of threads to be used.
     /// Defaults to 4.
-    pub fn with_device(self, device_num: u8) -> ParallelBuilder<HasImageDir, O, T> {
+    pub fn with_device(self, device_num: u8) -> ParallelBuilder {
         ParallelBuilder {
-            image_dir: self.image_dir,
             vec: self.vec,
             quality: self.quality,
-            output_dir: self.output_dir,
             device_num,
-            prefix: self.prefix,
-            _marker: PhantomData,
         }
     }
 }
-impl<T> ParallelBuilder<HasImageDir, HasOutputDir, T>
-where
-    T: AsRef<Path>,
-{
+impl ParallelBuilder {
     /// Builds a new Parallel.
     pub fn build(self) -> Parallel {
         let (tx, rx) = channel::unbounded();
@@ -109,8 +51,6 @@ where
             to_thread: StuffThatNeedsToBeSent {
                 device_num: self.device_num,
                 quality: self.quality,
-                output_dir: self.output_dir.as_ref().to_path_buf(),
-                prefix: self.prefix,
                 stealers: Vec::with_capacity(usize::from(self.device_num)),
                 transmitter: tx,
                 receiver: rx,
@@ -122,8 +62,6 @@ where
 pub struct StuffThatNeedsToBeSent {
     device_num: u8,
     quality: u8,
-    output_dir: PathBuf,
-    prefix: String,
     stealers: Vec<Stealer<Vec<u8>>>,
     transmitter: channel::Sender<Result<Vec<u8>, anyhow::Error>>,
     receiver: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
@@ -139,15 +77,7 @@ impl StuffThatNeedsToBeSent {
         for _ in 0..self.device_num {
             let local_stealer = Arc::clone(&to_steal_from);
             let local_transmitter = tx.clone();
-            let thread_output_dir = self.output_dir.clone();
             // let thread_custom_name = self.prefix.clone();
-            let thread_custom_name = {
-                if self.prefix.clone().trim().is_empty() {
-                    None
-                } else {
-                    Some(self.prefix.clone())
-                }
-            };
             let handle = thread::spawn(move || {
                 let mut are_queues_empty = Vec::with_capacity(usize::from(self.device_num));
                 let mut payload = Vec::with_capacity(1);
@@ -178,13 +108,7 @@ impl StuffThatNeedsToBeSent {
                         // lock is no longer needed past this point
                     }
                     if let Some(bytes) = payload.pop() {
-                        let compress_result = Compress::new(
-                            bytes,
-                            thread_output_dir.clone(),
-                            self.quality,
-                            thread_custom_name.clone(),
-                        )
-                        .compress();
+                        let compress_result = Compress::new(bytes, self.quality).compress();
                         // TODO: return a struct containing original path + compression_result
                         local_transmitter.send(compress_result).unwrap();
                     }
@@ -209,27 +133,20 @@ pub struct Parallel {
 }
 impl Parallel {
     /// Creates a new ParallelBuilder.
-    pub fn from_vec<T: AsRef<Path> + Default>(
-        vec: Vec<Vec<u8>>,
-    ) -> ParallelBuilder<HasImageDir, T, T> {
+    pub fn from_vec(vec: Vec<Vec<u8>>) -> ParallelBuilder {
         ParallelBuilder {
             vec,
-            image_dir: Default::default(),
             quality: QUALITY,
-            output_dir: Default::default(),
             device_num: DEVICE,
-            prefix: Default::default(),
-            _marker: PhantomData,
         }
     }
     fn compress(mut self) -> io::Result<Vec<JoinHandle<()>>> {
         let main_worker = Worker::new_fifo();
-        let move_vec = self.vec;
         for _ in 0..self.to_thread.device_num {
             self.to_thread.stealers.push(main_worker.stealer());
         }
         let tx = self.to_thread.transmitter.clone();
-        for bytes in move_vec {
+        for bytes in self.vec {
             main_worker.push(bytes);
         }
         let handles = self.to_thread.send_to_threads(tx);

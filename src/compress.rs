@@ -2,7 +2,6 @@ use anyhow::bail;
 use colored::Colorize;
 use image::EncodableLayout;
 use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
-use std::path::{Path, PathBuf};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 
 #[derive(Debug, Clone, Copy)]
@@ -23,38 +22,29 @@ impl From<u8> for ValidQuality {
 }
 /// Compression-related work.
 #[derive(Debug, Clone)]
-pub(crate) struct Compress<T: AsRef<Path>> {
+pub(crate) struct Compress {
     bytes: Vec<u8>,
-    output_dir: T,
     quality: u8,
-    prefix: Option<String>,
 }
-impl<T: AsRef<Path>> Compress<T> {
+impl Compress {
     /// Creates a new compression task.
-    pub(crate) fn new(bytes: Vec<u8>, output_dir: T, quality: u8, prefix: Option<String>) -> Self
-    where
-        T: AsRef<Path>,
-    {
+    pub(crate) fn new(bytes: Vec<u8>, quality: u8) -> Self {
         Self {
             bytes,
-            output_dir,
             quality: ValidQuality::from(quality).val(),
-            prefix,
         }
     }
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
     pub(crate) fn compress(&self) -> Result<Vec<u8>, anyhow::Error> {
         // TODO: what about the filename?
-        // for now I'm thinking of just straight up ignoring it.
         let with_exif_preserved = CompressImage::new(self.bytes.as_slice(), self.quality)
             .compress()?
             .into_preserve_exif()
             .preserve_exif()?;
-        let to_write = with_exif_preserved.get_compressed_bytes().map_err(|e| {
+        with_exif_preserved.get_compressed_bytes().map_err(|e| {
             eprintln!("{e}");
             e.context(format!("at: {}:{}:{}", file!(), line!(), column!()))
-        });
-        to_write
+        })
     }
 }
 /// Compress an image, retaining its bytes before and after compression.
@@ -88,18 +78,6 @@ impl PreserveExif {
         } else {
             bail!("BUG: EXIF is not preserved.".red());
         }
-    }
-    /// Pretty formatting for original image size.
-    fn format_size_before(&self) -> colored::ColoredString {
-        let in_mbytes = (self.original_bytes.len()) as f64 / 1_000_000.0;
-        let as_string = format!("{:.2} MB", in_mbytes);
-        as_string.bright_red()
-    }
-    /// Pretty formatting for compressed image size.
-    fn format_size_after(&self) -> colored::ColoredString {
-        let in_mbytes = (self.with_exif_preserved.len()) as f64 / 1_000_000.0;
-        let as_string = format!("{:.2} MB", in_mbytes);
-        as_string.green()
     }
 }
 struct CompressImage<'a> {
