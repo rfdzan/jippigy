@@ -1,11 +1,8 @@
 use crate::{Compress, DEVICE, QUALITY};
 use crossbeam::channel;
-use crossbeam::deque::Worker;
-use crossbeam::deque::{Steal, Stealer};
-use std::io;
+use crossbeam::deque::{Steal, Stealer, Worker};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time;
 /// Custom configuration for building a Parallel.
 #[derive(Debug, Clone)]
 pub struct ParallelBuilder {
@@ -47,14 +44,15 @@ impl ParallelBuilder {
     pub fn build(self) -> Parallel {
         let (tx, rx) = channel::unbounded();
         Parallel {
+            main_worker: Worker::new_fifo(),
             vec: self.vec,
             to_thread: StuffThatNeedsToBeSent {
                 device_num: self.device_num,
                 quality: self.quality,
                 stealers: Vec::with_capacity(usize::from(self.device_num)),
-                transmitter: tx,
-                receiver: rx,
             },
+            transmitter: tx,
+            receiver: rx,
         }
     }
 }
@@ -63,8 +61,6 @@ pub struct StuffThatNeedsToBeSent {
     device_num: u8,
     quality: u8,
     stealers: Vec<Stealer<Vec<u8>>>,
-    transmitter: channel::Sender<Result<Vec<u8>, anyhow::Error>>,
-    receiver: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
 }
 impl StuffThatNeedsToBeSent {
     /// Compress images in parallel.
@@ -77,12 +73,9 @@ impl StuffThatNeedsToBeSent {
         for _ in 0..self.device_num {
             let local_stealer = Arc::clone(&to_steal_from);
             let local_transmitter = tx.clone();
-            // let thread_custom_name = self.prefix.clone();
             let handle = thread::spawn(move || {
                 let mut are_queues_empty = Vec::with_capacity(usize::from(self.device_num));
                 let mut payload = Vec::with_capacity(1);
-                // wait a bit for the main worker to have something in it.
-                thread::sleep(time::Duration::from_millis(1));
                 loop {
                     {
                         let Some(stealer_guard) = local_stealer.try_lock().ok() else {
@@ -109,8 +102,13 @@ impl StuffThatNeedsToBeSent {
                     }
                     if let Some(bytes) = payload.pop() {
                         let compress_result = Compress::new(bytes, self.quality).compress();
-                        // TODO: return a struct containing original path + compression_result
-                        local_transmitter.send(compress_result).unwrap();
+                        // TODO: send a struct containing original path + compression_result
+                        match local_transmitter.send(compress_result) {
+                            Err(e) => {
+                                eprintln!("{e:#?}");
+                            }
+                            Ok(_) => {}
+                        }
                     }
                     // if all stealers are empty, exit the loop.
                     if are_queues_empty.iter().all(|val| val == &true) {
@@ -128,8 +126,11 @@ impl StuffThatNeedsToBeSent {
 /// Worker threads.
 #[derive(Debug)]
 pub struct Parallel {
+    main_worker: Worker<Vec<u8>>,
     vec: Vec<Vec<u8>>,
     to_thread: StuffThatNeedsToBeSent,
+    transmitter: channel::Sender<Result<Vec<u8>, anyhow::Error>>,
+    receiver: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
 }
 impl Parallel {
     /// Creates a new ParallelBuilder.
@@ -140,26 +141,22 @@ impl Parallel {
             device_num: DEVICE,
         }
     }
-    fn compress(mut self) -> io::Result<Vec<JoinHandle<()>>> {
-        let main_worker = Worker::new_fifo();
+    fn compress(mut self) -> Vec<JoinHandle<()>> {
         for _ in 0..self.to_thread.device_num {
-            self.to_thread.stealers.push(main_worker.stealer());
+            self.to_thread.stealers.push(self.main_worker.stealer());
         }
-        let tx = self.to_thread.transmitter.clone();
         for bytes in self.vec {
-            main_worker.push(bytes);
+            self.main_worker.push(bytes);
         }
-        let handles = self.to_thread.send_to_threads(tx);
-        Ok(handles)
+        let handles = self.to_thread.send_to_threads(self.transmitter);
+        handles
     }
 }
 impl IntoIterator for Parallel {
     type Item = Result<Vec<u8>, anyhow::Error>;
     type IntoIter = ParallelIntoIterator;
     fn into_iter(self) -> Self::IntoIter {
-        let receiver = self.to_thread.receiver.clone();
-        // TODO: this unwrap must be handled
-        // not quite sure how to make into_iter() fallible.
+        let receiver = self.receiver.clone();
         let handles = self.compress();
         ParallelIntoIterator::new(receiver, handles)
     }
@@ -170,11 +167,8 @@ pub struct ParallelIntoIterator {
 impl ParallelIntoIterator {
     fn new(
         recv: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
-        handles: Result<Vec<JoinHandle<()>>, io::Error>,
+        _handles: Vec<JoinHandle<()>>,
     ) -> Self {
-        if let Err(e) = handles {
-            eprintln!("{e}");
-        }
         Self { recv }
     }
 }
