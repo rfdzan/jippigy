@@ -46,7 +46,7 @@ impl<T: AsRef<Path>> Compress<T> {
     pub(crate) fn compress(&self) -> Result<Vec<u8>, anyhow::Error> {
         // TODO: what about the filename?
         // for now I'm thinking of just straight up ignoring it.
-        let with_exif_preserved = CompressImage::new(self.bytes, self.quality)
+        let with_exif_preserved = CompressImage::new(self.bytes.as_slice(), self.quality)
             .compress()?
             .into_preserve_exif()
             .preserve_exif()?;
@@ -102,17 +102,17 @@ impl PreserveExif {
         as_string.green()
     }
 }
-struct CompressImage {
-    bytes: Vec<u8>,
+struct CompressImage<'a> {
+    bytes: &'a [u8],
     compressed_bytes: Vec<u8>,
     q: u8,
 }
-impl CompressImage {
+impl<'a> CompressImage<'a> {
     /// Creates a new image to be compressed.
-    fn new(bytes: Vec<u8>, q: u8) -> Self {
+    fn new(bytes: &'a [u8], q: u8) -> Self {
         Self {
             q,
-            bytes: Default::default(),
+            bytes,
             compressed_bytes: Default::default(),
         }
     }
@@ -126,7 +126,7 @@ impl CompressImage {
     /// Produce PreserveExif.
     fn into_preserve_exif(self) -> PreserveExif {
         PreserveExif {
-            original_bytes: self.bytes,
+            original_bytes: self.bytes.to_vec(),
             compressed_bytes: self.compressed_bytes,
             with_exif_preserved: Vec::new(),
         }
