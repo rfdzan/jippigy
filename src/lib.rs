@@ -68,17 +68,18 @@
 //! [`turbojpeg-sys`]: https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys
 //! [`Building`]: https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys#building
 /// Parallelization module.
-pub mod bulk;
+mod bulk;
 /// Compression module.
 mod compress;
 /// Default values.
 mod defaults;
 /// Single-image tasks.
-pub mod single;
+mod single;
 use std::path::{Path, PathBuf};
 
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
+pub use self::{bulk::Parallel, single::Single};
 #[derive(Debug, Clone)]
 pub struct CompressionResult {
     path: PathBuf,
