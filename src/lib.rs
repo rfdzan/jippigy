@@ -12,26 +12,20 @@
 //!
 //!To successfully build `turbojpeg-sys`, you need to install `cmake`, a C compiler (gcc, clang, etc.), and NASM in your system (See: [`turbojpeg`]'s [requirements](https://github.com/honzasp/rust-turbojpeg?tab=readme-ov-file#requirements)). For more details, see [`turbojpeg-sys`]'s [`Building`] section.
 //! # Examples
-//! Both [`Single`] and [`Parallel`] require you to use both of their respective `output_dir()` methods (see: [`SingleBuilder.output_dir()`] and [`ParallelBuilder.output_dir()`] methods). `output_dir()` will attempt to create the directory if it doesn't exist. If it fails, it will return with an error before doing any expensive operations.
 //!
 //! `with_` methods are optional.
 
 //! ## Single image compressions with [`Single`]
-//!```ignore
+//!```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! # use image::RgbImage;
-//! # use jippigy::single::Single;
-//! # use tempdir;
-//! # use std::fs;
-//! # let temp_dir = tempdir::TempDir::new("example`").unwrap();
-//! # let image_path = temp_dir.path().join("my_example_jpeg.jpg");
-//! # fs::File::create(image_path.as_path()).unwrap();
-//! # RgbImage::new(1000, 1000).save(image_path.as_path()).unwrap();
-//! # let output_dir = temp_dir.into_path();
-//! Single::builder(image_path)
-//!     .output_dir(output_dir)? // This method is required.
-//!     .with_quality(95)
-//!     .with_prefix("my_prefix_".to_string())
+//! # use image::{RgbImage, ImageFormat::Jpeg};
+//! # use std::io::Cursor;
+//! # use jippigy::Single;
+//! # let mut vec = Vec::new();
+//! # let img = RgbImage::new(1000, 1000);
+//! # let _write = img.write_to(&mut Cursor::new(&mut vec), Jpeg).unwrap();
+//! let _result: Vec<u8> = Single::from_bytes(vec.as_slice())
+//!     .with_quality(80)
 //!     .build()
 //!     .compress()?;
 //! # Ok(())
@@ -39,24 +33,26 @@
 //!```
 //!
 //! ## Multi-threaded bulk compressions with [`Parallel`]
-//!```ignore
+//!```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! # use image::RgbImage;
-//! # use jippigy::bulk::Parallel;
-//! # use tempdir;
-//! # use std::fs;
-//! # let temp_dir = tempdir::TempDir::new("example`").unwrap();
-//! # let image_path = temp_dir.path().join("my_example_jpeg.jpg");
-//! # fs::File::create(image_path.as_path()).unwrap();
-//! # RgbImage::new(1000, 1000).save(image_path.as_path()).unwrap();
-//! # let image_dir = temp_dir.into_path();
-//! Parallel::builder(image_dir.clone())
-//!     .output_dir(image_dir.join("compressed"))? // This method is required.
-//!     .with_quality(95)
-//!     .with_prefix("my_prefix_".to_string())
-//!     .with_device(4) // Use 4 threads for this job.
+//! # use image::{RgbImage, ImageFormat::Jpeg};
+//! # use std::io::Cursor;
+//! # use jippigy::Parallel;
+//! # let mut list_of_bytes = Vec::new();
+//! # for _ in 0..10 {
+//! #     let mut bytes = Vec::new();
+//! #     let img = RgbImage::new(1000, 1000);
+//! #     let _write = img.write_to(&mut Cursor::new(&mut bytes), Jpeg).unwrap();
+//! #     list_of_bytes.push(bytes);
+//! # }
+//! for result in Parallel::from_vec(list_of_bytes)
+//!     .with_quality(80)
+//!     .with_device(4) // how many threads to use.
 //!     .build()
-//!     .compress()?;
+//!     .into_iter() {
+//!     let compressed_bytes: Vec<u8> = result?;   
+//!     // do something with the compressed results.
+//! }
 //! # Ok(())
 //! # }
 //!```
