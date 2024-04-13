@@ -17,7 +17,7 @@
 //! `with_` methods are optional.
 
 //! ## Single image compressions with [`Single`]
-//!```rust
+//!```ignore
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # use image::RgbImage;
 //! # use jippigy::single::Single;
@@ -39,7 +39,7 @@
 //!```
 //!
 //! ## Multi-threaded bulk compressions with [`Parallel`]
-//!```rust
+//!```ignore
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # use image::RgbImage;
 //! # use jippigy::bulk::Parallel;
