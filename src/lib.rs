@@ -56,6 +56,7 @@
 //!     Ok(())
 //! }
 //!```
+//!
 //! [`Single`]: single::Single
 //! [`Parallel`]: bulk::Parallel
 //! [`turbojpeg`]: https://github.com/honzasp/rust-turbojpeg

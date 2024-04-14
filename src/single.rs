@@ -65,12 +65,20 @@ impl<'a> Single<'a> {
     /// In order to start the compression, it has to be built first:
     /// ```
     /// use jippigy::Single;     
-    /// fn main() {
-    ///     let bytes: Vec<u8> = Vec::new();   
-    ///     let _single = Single::from_bytes(bytes.as_slice()).build().compress();
+    /// use image::{RgbImage, ImageFormat::Jpeg};
+    /// use std::io::Cursor;
+    /// fn main() -> Result<(), Box<dyn std::error::Error>>{
+    ///     let mut bytes = Vec::new();
+    ///     let img = RgbImage::new(1000, 1000);
+    ///     let _write = img.write_to(&mut Cursor::new(&mut bytes), Jpeg).unwrap();
+    ///     let _result: Vec<u8> = Single::from_bytes(bytes.as_slice())
+    ///         .with_quality(80)
+    ///         .build()
+    ///         .compress()?;
+    ///     Ok(())
     /// }
     /// ```
-    pub fn compress(self) -> anyhow::Result<Vec<u8>> {
-        Compress::new(self.bytes_slice.to_vec(), self.quality).compress()
+    pub fn compress(self) -> Result<Vec<u8>, anyhow::Error> {
+        Ok(Compress::new(self.bytes_slice.to_vec(), self.quality).compress()?)
     }
 }

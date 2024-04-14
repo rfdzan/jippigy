@@ -202,6 +202,7 @@ impl IntoIterator for Parallel {
         ParallelIntoIterator::new(receiver, handles)
     }
 }
+
 pub struct ParallelIntoIterator {
     recv: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
 }
