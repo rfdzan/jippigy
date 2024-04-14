@@ -22,6 +22,8 @@ impl Default for ParallelBuilder {
 impl ParallelBuilder {
     /// Specifies the quality of compressed images.
     /// Defaults to 95 (95% of the original quality).
+    ///
+    /// **This method is optional**.
     pub fn with_quality(self, quality: u8) -> ParallelBuilder {
         ParallelBuilder {
             vec: self.vec,
@@ -30,7 +32,13 @@ impl ParallelBuilder {
         }
     }
     /// Specifies the number of threads to be used.
-    /// Defaults to 4.
+    /// Defaults to 2.
+    ///
+    /// **This method is optional**.
+    /// # Warning
+    /// Theoretically, using more threads would mean more workers working on your images.
+    /// However, spawning many threads has diminishing returns and not to mention it can be costly.
+    /// Experiment as you please, but if you don't know what number to put in simply don't use this method as it is optional.
     pub fn with_device(self, device_num: u8) -> ParallelBuilder {
         ParallelBuilder {
             vec: self.vec,
@@ -40,7 +48,16 @@ impl ParallelBuilder {
     }
 }
 impl ParallelBuilder {
-    /// Builds a new Parallel.
+    /// Builds a new Parallel with default or specified configuration.
+    /// # Example
+    /// This is the minimal requirements for using this method:
+    /// ```
+    /// # fn main() {
+    /// # use jippigy::Parallel;
+    /// let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
+    /// let _build = Parallel::from_vec(vector_of_bytes).build();
+    /// # }
+    /// ```
     pub fn build(self) -> Parallel {
         let (tx, rx) = channel::unbounded();
         Parallel {
@@ -133,7 +150,31 @@ pub struct Parallel {
     receiver: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
 }
 impl Parallel {
-    /// Creates a new ParallelBuilder.
+    /// Creates a parallelized compression task from a vector of bytes. Returns a [`ParallelBuilder`].
+    /// This method initializes the compression task with the following defaults:
+    /// - Default final quality is 95% (95% of the original quality).
+    /// - Default number of threads spawned is 2.
+    /// # Example
+    /// ```
+    /// use jippigy::Parallel;
+    /// fn main() {
+    ///     let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
+    ///     let _parallel = Parallel::from_vec(vector_of_bytes);
+    /// }
+    /// ```
+    /// In order to start the compression, it has to be built and made into an iterator with `into_iter`:
+    /// ```
+    /// use jippigy::Parallel;
+    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
+    ///     let into_iter = Parallel::from_vec(vector_of_bytes).build().into_iter();
+    ///     for result in into_iter {
+    ///         let bytes: Vec<u8> = result?;
+    ///         // do something with the bytes.
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn from_vec(vec: Vec<Vec<u8>>) -> ParallelBuilder {
         ParallelBuilder {
             vec,

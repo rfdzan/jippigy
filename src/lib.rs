@@ -17,49 +17,47 @@
 
 //! ## Single image compressions with [`Single`]
 //!```
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! use jippigy::Single;
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # use image::{RgbImage, ImageFormat::Jpeg};
 //! # use std::io::Cursor;
-//! # use jippigy::Single;
-//! # let mut vec = Vec::new();
+//!     let mut vec: Vec<u8> = Vec::new();
 //! # let img = RgbImage::new(1000, 1000);
 //! # let _write = img.write_to(&mut Cursor::new(&mut vec), Jpeg).unwrap();
-//! let _result: Vec<u8> = Single::from_bytes(vec.as_slice())
-//!     .with_quality(80)
-//!     .build()
-//!     .compress()?;
-//! # Ok(())
-//! # }
+//!     let _result: Vec<u8> = Single::from_bytes(vec.as_slice())
+//!         .with_quality(80)
+//!         .build()
+//!         .compress()?;
+//!     Ok(())
+//! }
 //!```
 //!
 //! ## Multi-threaded bulk compressions with [`Parallel`]
 //!```
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! use jippigy::Parallel;
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # use image::{RgbImage, ImageFormat::Jpeg};
 //! # use std::io::Cursor;
-//! # use jippigy::Parallel;
-//! # let mut list_of_bytes = Vec::new();
+//!     let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
 //! # for _ in 0..10 {
 //! #     let mut bytes = Vec::new();
 //! #     let img = RgbImage::new(1000, 1000);
 //! #     let _write = img.write_to(&mut Cursor::new(&mut bytes), Jpeg).unwrap();
-//! #     list_of_bytes.push(bytes);
+//! #     vector_of_bytes.push(bytes);
 //! # }
-//! for result in Parallel::from_vec(list_of_bytes)
-//!     .with_quality(80)
-//!     .with_device(4) // how many threads to use.
-//!     .build()
-//!     .into_iter() {
-//!     let compressed_bytes: Vec<u8> = result?;   
-//!     // do something with the compressed results.
+//!     for result in Parallel::from_vec(vector_of_bytes)
+//!         .with_quality(80)
+//!         .with_device(4) // how many threads to use.
+//!         .build()
+//!         .into_iter() {
+//!         let compressed_bytes: Vec<u8> = result?;   
+//!         // do something with the compressed results.
+//!     }
+//!     Ok(())
 //! }
-//! # Ok(())
-//! # }
 //!```
 //! [`Single`]: single::Single
 //! [`Parallel`]: bulk::Parallel
-//! [`SingleBuilder.output_dir()`]: single::SingleBuilder#output_dir
-//! [`ParallelBuilder.output_dir()`]: bulk::ParallelBuilder#output_dir
 //! [`turbojpeg`]: https://github.com/honzasp/rust-turbojpeg
 //! [`turbojpeg-sys`]: https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys
 //! [`Building`]: https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys#building
@@ -75,7 +73,10 @@ use std::path::{Path, PathBuf};
 
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
-pub use self::{bulk::Parallel, single::Single};
+pub use self::{
+    bulk::{Parallel, ParallelBuilder},
+    single::{Single, SingleBuilder},
+};
 #[derive(Debug, Clone)]
 pub struct CompressionResult {
     path: PathBuf,
