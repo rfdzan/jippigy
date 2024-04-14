@@ -70,7 +70,7 @@ impl<'a> Single<'a> {
     /// fn main() -> Result<(), Box<dyn std::error::Error>>{
     ///     let mut bytes = Vec::new();
     ///     let img = RgbImage::new(1000, 1000);
-    ///     let _write = img.write_to(&mut Cursor::new(&mut bytes), Jpeg).unwrap();
+    ///     let _write = img.write_to(&mut Cursor::new(&mut bytes), Jpeg)?;
     ///     let _result: Vec<u8> = Single::from_bytes(bytes.as_slice())
     ///         .with_quality(80)
     ///         .build()

@@ -1,4 +1,4 @@
-/// Quality default.
+/// Default compression ratio.
 pub(crate) const QUALITY: u8 = 95;
-/// Device default.
+/// Default number of threads used.
 pub(crate) const DEVICE: u8 = 2;

@@ -1,4 +1,4 @@
-// #![warn(missing_docs)]
+#![warn(missing_docs)]
 //! A multi-threaded JPEG compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 //!
 //! This crate provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
@@ -23,7 +23,7 @@
 //! # use std::io::Cursor;
 //!     let mut vec: Vec<u8> = Vec::new();
 //! # let img = RgbImage::new(1000, 1000);
-//! # let _write = img.write_to(&mut Cursor::new(&mut vec), Jpeg).unwrap();
+//! # let _write = img.write_to(&mut Cursor::new(&mut vec), Jpeg)?;
 //!     let _result: Vec<u8> = Single::from_bytes(vec.as_slice())
 //!         .with_quality(80)
 //!         .build()
@@ -64,13 +64,10 @@
 //! [`Building`]: https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys#building
 /// Parallelization module.
 mod bulk;
-/// Compression module.
 mod compress;
-/// Default values.
 mod defaults;
 /// Single-image tasks.
 mod single;
-use std::path::{Path, PathBuf};
 
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
@@ -78,20 +75,3 @@ pub use self::{
     bulk::{Parallel, ParallelBuilder},
     single::{Single, SingleBuilder},
 };
-#[derive(Debug, Clone)]
-pub struct CompressionResult {
-    path: PathBuf,
-    bytes: Vec<u8>,
-}
-#[allow(dead_code)]
-impl CompressionResult {
-    pub(crate) fn new(path: PathBuf, bytes: Vec<u8>) -> Self {
-        Self { path, bytes }
-    }
-    pub fn path(&self) -> &Path {
-        self.path.as_path()
-    }
-    pub fn bytes(&self) -> &[u8] {
-        self.bytes.as_slice()
-    }
-}
