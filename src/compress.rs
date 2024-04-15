@@ -33,6 +33,7 @@ impl Compress {
         }
     }
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
+
     pub(crate) fn compress(&self) -> Result<Vec<u8>, error::Error> {
         let with_exif_preserved = CompressImage::new(self.bytes.clone(), self.quality)
             .compress()?

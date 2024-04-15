@@ -1,3 +1,4 @@
+
 use crate::{error, Compress, QUALITY};
 /// Creates a new Single struct for compressing single images.
 #[derive(Debug, Clone)]

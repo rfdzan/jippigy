@@ -3,7 +3,9 @@ use crossbeam::channel;
 use crossbeam::deque::{Steal, Stealer, Worker};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-/// Custom configuration for building a Parallel.
+/// Custom configuration for building a [`Parallel`].
+/// This struct is not meant to be used directly.
+/// Use [`Parallel::from_vec`] instead.
 #[derive(Debug, Clone)]
 pub struct ParallelBuilder {
     vec: Vec<Vec<u8>>,
@@ -48,7 +50,7 @@ impl ParallelBuilder {
     }
 }
 impl ParallelBuilder {
-    /// Builds a new Parallel with default or specified configuration.
+    /// Builds a new [`Parallel`] with default or specified configuration.
     /// # Example
     /// This is the minimal requirements for using this method:
     /// ```
@@ -119,7 +121,6 @@ impl StuffThatNeedsToBeSent {
                     }
                     if let Some(bytes) = payload.pop() {
                         let compress_result = Compress::new(bytes, self.quality).compress();
-                        // TODO: send a struct containing original path + compression_result
                         match local_transmitter.send(compress_result) {
                             Err(e) => {
                                 eprintln!("{e:#?}");
@@ -140,7 +141,7 @@ impl StuffThatNeedsToBeSent {
         handles
     }
 }
-/// Worker threads.
+/// Parallelized compression task.
 #[derive(Debug)]
 pub struct Parallel {
     main_worker: Worker<Vec<u8>>,
