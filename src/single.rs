@@ -1,23 +1,23 @@
 use crate::{Compress, QUALITY};
 /// Creates a new Single struct for compressing single images.
 #[derive(Debug, Clone)]
-pub struct SingleBuilder<'a> {
-    bytes_slice: &'a [u8],
+pub struct SingleBuilder {
+    bytes_slice: Vec<u8>,
     quality: u8,
 }
-impl<'a> SingleBuilder<'a> {
+impl SingleBuilder {
     /// Specifies the quality of compressed images.
     /// Defaults to 95 (95% original quality).
     ///
     /// **This method is optional**.
-    pub fn with_quality(self, quality: u8) -> SingleBuilder<'a> {
+    pub fn with_quality(self, quality: u8) -> SingleBuilder {
         SingleBuilder {
             bytes_slice: self.bytes_slice,
             quality,
         }
     }
 }
-impl<'a> SingleBuilder<'a> {
+impl SingleBuilder {
     /// Builds a new Single with custom configurations.
     /// # Example
     /// This is the minimum requirements for using this method:
@@ -25,10 +25,10 @@ impl<'a> SingleBuilder<'a> {
     /// use jippigy::Single;
     /// fn main() {
     ///     let bytes: Vec<u8> = Vec::new();
-    ///     let _build = Single::from_bytes(bytes.as_slice()).build();          
+    ///     let _build = Single::from_bytes(bytes).build();          
     /// }
     /// ```
-    pub fn build(self) -> Single<'a> {
+    pub fn build(self) -> Single {
         Single {
             bytes_slice: self.bytes_slice,
             quality: self.quality,
@@ -37,11 +37,11 @@ impl<'a> SingleBuilder<'a> {
 }
 /// Single image compressions.
 #[derive(Debug, Clone)]
-pub struct Single<'a> {
-    bytes_slice: &'a [u8],
+pub struct Single {
+    bytes_slice: Vec<u8>,
     quality: u8,
 }
-impl<'a> Single<'a> {
+impl Single {
     /// Creates a single image compression task from a given byte slice. Returns a [`SingleBuilder`].
     ///
     /// This method initializes the compression task with the following defaults:
@@ -51,10 +51,10 @@ impl<'a> Single<'a> {
     /// use jippigy::Single;     
     /// fn main() {
     ///     let bytes: Vec<u8> = Vec::new();   
-    ///     let _single = Single::from_bytes(bytes.as_slice());
+    ///     let _single = Single::from_bytes(bytes);
     /// }
     /// ```
-    pub fn from_bytes(bytes_slice: &'a [u8]) -> SingleBuilder {
+    pub fn from_bytes(bytes_slice: Vec<u8>) -> SingleBuilder {
         SingleBuilder {
             bytes_slice,
             quality: QUALITY,
@@ -71,7 +71,7 @@ impl<'a> Single<'a> {
     ///     let mut bytes = Vec::new();
     ///     let img = RgbImage::new(1000, 1000);
     ///     let _write = img.write_to(&mut Cursor::new(&mut bytes), Jpeg)?;
-    ///     let _result: Vec<u8> = Single::from_bytes(bytes.as_slice())
+    ///     let _result: Vec<u8> = Single::from_bytes(bytes)
     ///         .with_quality(80)
     ///         .build()
     ///         .compress()?;
@@ -79,6 +79,6 @@ impl<'a> Single<'a> {
     /// }
     /// ```
     pub fn compress(self) -> Result<Vec<u8>, anyhow::Error> {
-        Ok(Compress::new(self.bytes_slice.to_vec(), self.quality).compress()?)
+        Ok(Compress::new(self.bytes_slice, self.quality).compress()?)
     }
 }

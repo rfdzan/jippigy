@@ -24,7 +24,7 @@
 //!     let mut vec: Vec<u8> = Vec::new();
 //! # let img = RgbImage::new(1000, 1000);
 //! # let _write = img.write_to(&mut Cursor::new(&mut vec), Jpeg)?;
-//!     let _result: Vec<u8> = Single::from_bytes(vec.as_slice())
+//!     let _result: Vec<u8> = Single::from_bytes(vec)
 //!         .with_quality(80)
 //!         .build()
 //!         .compress()?;

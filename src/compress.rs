@@ -1,6 +1,5 @@
 use anyhow::bail;
 use colored::Colorize;
-use image::EncodableLayout;
 use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 
@@ -37,7 +36,7 @@ impl Compress {
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
     pub(crate) fn compress(&self) -> Result<Vec<u8>, anyhow::Error> {
         // TODO: what about the filename?
-        let with_exif_preserved = CompressImage::new(self.bytes.as_slice(), self.quality)
+        let with_exif_preserved = CompressImage::new(self.bytes.clone(), self.quality)
             .compress()?
             .into_preserve_exif()
             .preserve_exif()?;
@@ -80,14 +79,14 @@ impl PreserveExif {
         }
     }
 }
-struct CompressImage<'a> {
-    bytes: &'a [u8],
+struct CompressImage {
+    bytes: Vec<u8>,
     compressed_bytes: Vec<u8>,
     q: u8,
 }
-impl<'a> CompressImage<'a> {
+impl CompressImage {
     /// Creates a new image to be compressed.
-    fn new(bytes: &'a [u8], q: u8) -> Self {
+    fn new(bytes: Vec<u8>, q: u8) -> Self {
         Self {
             q,
             bytes,
@@ -96,15 +95,15 @@ impl<'a> CompressImage<'a> {
     }
     /// Compresses image file, retaining original and compressed bytes. Returns self.
     fn compress(mut self) -> anyhow::Result<Self> {
-        let image: image::RgbImage = decompress_image(self.bytes.as_bytes())?;
+        let image: image::RgbImage = decompress_image(self.bytes.as_slice())?;
         let jpeg_data = compress_image(&image, i32::from(self.q), Sub2x2)?;
-        self.compressed_bytes = jpeg_data.as_bytes().to_owned();
+        self.compressed_bytes = jpeg_data.to_vec();
         Ok(self)
     }
     /// Produce PreserveExif.
     fn into_preserve_exif(self) -> PreserveExif {
         PreserveExif {
-            original_bytes: self.bytes.to_vec(),
+            original_bytes: self.bytes,
             compressed_bytes: self.compressed_bytes,
             with_exif_preserved: Vec::new(),
         }

@@ -17,13 +17,13 @@ impl Dummy {
 #[test]
 fn test_basic_failing_single() {
     let failing = Dummy::create_failing_image();
-    let single = Single::from_bytes(failing.as_slice()).build().compress();
+    let single = Single::from_bytes(failing).build().compress();
     assert!(single.is_err());
 }
 #[test]
 fn test_basic_success_single() {
     let success = Dummy::create_jpeg_image();
-    let single = Single::from_bytes(success.as_slice()).build().compress();
+    let single = Single::from_bytes(success).build().compress();
     assert!(single.is_ok());
 }
 #[test]
