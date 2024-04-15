@@ -12,84 +12,66 @@
 //!
 //!To successfully build `turbojpeg-sys`, you need to install `cmake`, a C compiler (gcc, clang, etc.), and NASM in your system (See: [`turbojpeg`]'s [requirements](https://github.com/honzasp/rust-turbojpeg?tab=readme-ov-file#requirements)). For more details, see [`turbojpeg-sys`]'s [`Building`] section.
 //! # Examples
-//! Both [`Single`] and [`Parallel`] require you to use both of their respective `output_dir()` methods (see: [`SingleBuilder.output_dir()`] and [`ParallelBuilder.output_dir()`] methods). `output_dir()` will attempt to create the directory if it doesn't exist. If it fails, it will return with an error before doing any expensive operations.
 //!
 //! `with_` methods are optional.
 
 //! ## Single image compressions with [`Single`]
-//!```rust
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! # use image::RgbImage;
-//! # use jippigy::single::Single;
-//! # use tempdir;
-//! # use std::fs;
-//! # let temp_dir = tempdir::TempDir::new("example`").unwrap();
-//! # let image_path = temp_dir.path().join("my_example_jpeg.jpg");
-//! # fs::File::create(image_path.as_path()).unwrap();
-//! # RgbImage::new(1000, 1000).save(image_path.as_path()).unwrap();
-//! # let output_dir = temp_dir.into_path();
-//! Single::builder(image_path)
-//!     .output_dir(output_dir)? // This method is required.
-//!     .with_quality(95)
-//!     .with_prefix("my_prefix_".to_string())
-//!     .build()
-//!     .compress()?;
-//! # Ok(())
-//! # }
+//!```
+//! use jippigy::Single;
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # use image::{RgbImage, ImageFormat::Jpeg};
+//! # use std::io::Cursor;
+//!     let mut vec: Vec<u8> = Vec::new();
+//! # let img = RgbImage::new(1000, 1000);
+//! # let _write = img.write_to(&mut Cursor::new(&mut vec), Jpeg)?;
+//!     let _result: Vec<u8> = Single::from_bytes(vec)
+//!         .with_quality(80)
+//!         .build()
+//!         .compress()?;
+//!     Ok(())
+//! }
 //!```
 //!
 //! ## Multi-threaded bulk compressions with [`Parallel`]
-//!```rust
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! # use image::RgbImage;
-//! # use jippigy::bulk::Parallel;
-//! # use tempdir;
-//! # use std::fs;
-//! # let temp_dir = tempdir::TempDir::new("example`").unwrap();
-//! # let image_path = temp_dir.path().join("my_example_jpeg.jpg");
-//! # fs::File::create(image_path.as_path()).unwrap();
-//! # RgbImage::new(1000, 1000).save(image_path.as_path()).unwrap();
-//! # let image_dir = temp_dir.into_path();
-//! Parallel::builder(image_dir.clone())
-//!     .output_dir(image_dir.join("compressed"))? // This method is required.
-//!     .with_quality(95)
-//!     .with_prefix("my_prefix_".to_string())
-//!     .with_device(4) // Use 4 threads for this job.
-//!     .build()
-//!     .compress()?;
-//! # Ok(())
-//! # }
 //!```
+//! use jippigy::Parallel;
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # use image::{RgbImage, ImageFormat::Jpeg};
+//! # use std::io::Cursor;
+//!     let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
+//! # for _ in 0..10 {
+//! #     let mut bytes = Vec::new();
+//! #     let img = RgbImage::new(1000, 1000);
+//! #     let _write = img.write_to(&mut Cursor::new(&mut bytes), Jpeg).unwrap();
+//! #     vector_of_bytes.push(bytes);
+//! # }
+//!     for result in Parallel::from_vec(vector_of_bytes)
+//!         .with_quality(80)
+//!         .with_device(4) // how many threads to use.
+//!         .build()
+//!         .into_iter() {
+//!         let compressed_bytes: Vec<u8> = result?;   
+//!         // do something with the compressed results.
+//!     }
+//!     Ok(())
+//! }
+//!```
+//!
 //! [`Single`]: single::Single
 //! [`Parallel`]: bulk::Parallel
-//! [`SingleBuilder.output_dir()`]: single::SingleBuilder#output_dir
-//! [`ParallelBuilder.output_dir()`]: bulk::ParallelBuilder#output_dir
 //! [`turbojpeg`]: https://github.com/honzasp/rust-turbojpeg
 //! [`turbojpeg-sys`]: https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys
 //! [`Building`]: https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys#building
 /// Parallelization module.
-pub mod bulk;
-/// Compression module.
+mod bulk;
 mod compress;
-/// Default values.
 mod defaults;
 /// Single-image tasks.
-pub mod single;
-/// Type states of structs.
-mod states;
-use std::path::Path;
+mod single;
 
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
-pub(crate) use self::states::{HasImage, HasImageDir, HasOutputDir};
-
-/// Attempt to create an output directory.
-pub(crate) fn create_output_dir(output_dir: &impl AsRef<Path>) -> std::io::Result<()> {
-    std::fs::create_dir(output_dir.as_ref()).or_else(|err| {
-        if err.kind() == std::io::ErrorKind::AlreadyExists {
-            Ok(())
-        } else {
-            Err(err)
-        }
-    })
-}
+pub use self::{
+    bulk::{Parallel, ParallelBuilder},
+    single::{Single, SingleBuilder},
+};
