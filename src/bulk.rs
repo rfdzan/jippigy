@@ -121,7 +121,6 @@ impl StuffThatNeedsToBeSent {
                     }
                     if let Some(bytes) = payload.pop() {
                         let compress_result = Compress::new(bytes, self.quality).compress();
-                        // TODO: send a struct containing original path + compression_result
                         match local_transmitter.send(compress_result) {
                             Err(e) => {
                                 eprintln!("{e:#?}");
