@@ -1,7 +1,6 @@
-use crate::{Compress, QUALITY};
-/// Custom configuration for building a [`Single`].
-/// This struct is not meant to be used directly.
-/// Use [`Single::from_bytes`] instead.
+
+use crate::{error, Compress, QUALITY};
+/// Creates a new Single struct for compressing single images.
 #[derive(Debug, Clone)]
 pub struct SingleBuilder {
     bytes_slice: Vec<u8>,
@@ -80,7 +79,8 @@ impl Single {
     ///     Ok(())
     /// }
     /// ```
-    pub fn compress(self) -> Result<Vec<u8>, anyhow::Error> {
-        Ok(Compress::new(self.bytes_slice, self.quality).compress()?)
+    pub fn compress(self) -> Result<Vec<u8>, error::Error> {
+        let compress = Compress::new(self.bytes_slice, self.quality).compress()?;
+        Ok(compress)
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Compress, DEVICE, QUALITY};
+use crate::{error, Compress, DEVICE, QUALITY};
 use crossbeam::channel;
 use crossbeam::deque::{Steal, Stealer, Worker};
 use std::sync::{Arc, Mutex};
@@ -85,7 +85,7 @@ impl StuffThatNeedsToBeSent {
     /// Compress images in parallel.
     fn send_to_threads(
         self,
-        tx: channel::Sender<Result<Vec<u8>, anyhow::Error>>,
+        tx: channel::Sender<Result<Vec<u8>, error::Error>>,
     ) -> Vec<thread::JoinHandle<()>> {
         let mut handles = Vec::with_capacity(usize::from(self.device_num));
         let to_steal_from = Arc::new(Mutex::new(self.stealers));
@@ -147,8 +147,8 @@ pub struct Parallel {
     main_worker: Worker<Vec<u8>>,
     vec: Vec<Vec<u8>>,
     to_thread: StuffThatNeedsToBeSent,
-    transmitter: channel::Sender<Result<Vec<u8>, anyhow::Error>>,
-    receiver: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
+    transmitter: channel::Sender<Result<Vec<u8>, error::Error>>,
+    receiver: channel::Receiver<Result<Vec<u8>, error::Error>>,
 }
 impl Parallel {
     /// Creates a parallelized compression task from a vector of bytes. Returns a [`ParallelBuilder`].
@@ -195,7 +195,7 @@ impl Parallel {
     }
 }
 impl IntoIterator for Parallel {
-    type Item = Result<Vec<u8>, anyhow::Error>;
+    type Item = Result<Vec<u8>, error::Error>;
     type IntoIter = ParallelIntoIterator;
     fn into_iter(self) -> Self::IntoIter {
         let receiver = self.receiver.clone();
@@ -205,18 +205,18 @@ impl IntoIterator for Parallel {
 }
 
 pub struct ParallelIntoIterator {
-    recv: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
+    recv: channel::Receiver<Result<Vec<u8>, error::Error>>,
 }
 impl ParallelIntoIterator {
     fn new(
-        recv: channel::Receiver<Result<Vec<u8>, anyhow::Error>>,
+        recv: channel::Receiver<Result<Vec<u8>, error::Error>>,
         _handles: Vec<JoinHandle<()>>,
     ) -> Self {
         Self { recv }
     }
 }
 impl Iterator for ParallelIntoIterator {
-    type Item = Result<Vec<u8>, anyhow::Error>;
+    type Item = Result<Vec<u8>, error::Error>;
     fn next(&mut self) -> Option<Self::Item> {
         if let Ok(result) = self.recv.recv() {
             return Some(result);
