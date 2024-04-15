@@ -55,7 +55,7 @@ impl PreserveExif {
     /// into the compressed bytes.
     fn preserve_exif(self) -> Result<Self, error::Error> {
         let original_img_parts = match Jpeg::from_bytes(self.original_bytes.clone().into()) {
-            Err(e) => return Err(error::Error::TurboJPEGError(e.to_string())),
+            Err(e) => return Err(error::Error::ImgPartError(e.to_string())),
             Ok(res) => res,
         };
         let exif = match original_img_parts.exif().ok_or(error::Error::ImgPartError(
@@ -79,7 +79,7 @@ impl PreserveExif {
             Ok(res) => res,
         };
         let mut compressed_img_part = match Jpeg::from_bytes(self.compressed_bytes.into()) {
-            Err(e) => return Err(error::Error::TurboJPEGError(e.to_string())),
+            Err(e) => return Err(error::Error::ImgPartError(e.to_string())),
             Ok(res) => res,
         };
         compressed_img_part.set_exif(exif.into());
@@ -96,7 +96,7 @@ impl PreserveExif {
         if self.compressed_bytes.is_empty() && !self.with_exif_preserved.is_empty() {
             Ok(self.with_exif_preserved)
         } else {
-            Err(error::Error::JippigyError(
+            Err(error::Error::JippigyInternalError(
                 "BUG: EXIF data is not preserved.".to_string(),
             ))
         }

@@ -62,17 +62,16 @@
 //! [`turbojpeg`]: https://github.com/honzasp/rust-turbojpeg
 //! [`turbojpeg-sys`]: https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys
 //! [`Building`]: https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys#building
-/// Parallelization module.
 mod bulk;
 mod compress;
 mod defaults;
 mod error;
-/// Single-image tasks.
 mod single;
 
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
 pub use self::{
     bulk::{Parallel, ParallelBuilder},
+    error::Error,
     single::{Single, SingleBuilder},
 };
