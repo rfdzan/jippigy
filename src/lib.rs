@@ -4,13 +4,13 @@
 //! This crate provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
 //!
 //! [`Single`] is meant for single image compressions.
-//! [`Parallel`] is meant for bulk compressions e.g. reading an entire directory and compressing any JPEG it finds.
+//! [`Parallel`] is meant for bulk compressions e.g. compressing a list of image bytes.
 //!
 //! As the name implies, [`Single`] is single-threaded whereas [`Parallel`] is multi-threaded.
 //! # Error building `turbojpeg`?
 //! The problem is typically related to `turbojpeg-sys` (see this [question](https://github.com/rfdzan/smoljpg/issues/4#issuecomment-2036065574) and my [attempt](https://github.com/rfdzan/jippigy/actions/runs/8552014019/job/23432251063#step:3:327) at setting up CI for this crate).
 //!
-//!To successfully build `turbojpeg-sys`, you need to install `cmake`, a C compiler (gcc, clang, etc.), and NASM in your system (See: [`turbojpeg`]'s [requirements](https://github.com/honzasp/rust-turbojpeg?tab=readme-ov-file#requirements)). For more details, see [`turbojpeg-sys`]'s [`Building`] section.
+//! To successfully build `turbojpeg-sys` you need to install `cmake`, a C compiler (gcc, clang, etc.), and NASM in your system (See: [`turbojpeg`]'s [requirements](https://github.com/honzasp/rust-turbojpeg?tab=readme-ov-file#requirements)). For more details, see [`turbojpeg-sys`]'s [`Building`] section.
 //! # Examples
 //!
 //! `with_` methods are optional.

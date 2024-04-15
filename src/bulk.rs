@@ -4,6 +4,8 @@ use crossbeam::deque::{Steal, Stealer, Worker};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 /// Custom configuration for building a Parallel.
+/// This struct is not meant to be used directly.
+/// Use [`Parallel::from_vec`] instead.
 #[derive(Debug, Clone)]
 pub struct ParallelBuilder {
     vec: Vec<Vec<u8>>,
@@ -140,7 +142,7 @@ impl StuffThatNeedsToBeSent {
         handles
     }
 }
-/// Worker threads.
+/// Parallelized compression task.
 #[derive(Debug)]
 pub struct Parallel {
     main_worker: Worker<Vec<u8>>,

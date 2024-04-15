@@ -1,5 +1,7 @@
 use crate::{Compress, QUALITY};
 /// Creates a new Single struct for compressing single images.
+/// This struct is not meant to be used directly.
+/// Use [`Single::from_bytes`] instead.
 #[derive(Debug, Clone)]
 pub struct SingleBuilder {
     bytes_slice: Vec<u8>,
