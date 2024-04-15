@@ -5,6 +5,6 @@ pub enum Error {
     JippigyError(String),
     #[error("A compression error occured.\n{0}")]
     TurboJPEGError(String),
-    #[error("There was an error while preserving EXIF/ICC data.\n{0}")]
+    #[error("{0}")]
     ImgPartError(String),
 }

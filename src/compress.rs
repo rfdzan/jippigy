@@ -38,7 +38,9 @@ impl Compress {
             .compress()?
             .into_preserve_exif()
             .preserve_exif()?;
-        with_exif_preserved.get_compressed_bytes()
+        // It must always be safe to unwrap this method.
+        // Otherwise exif is not preserved.
+        Ok(with_exif_preserved.get_compressed_bytes().unwrap())
     }
 }
 /// Compress an image, retaining its bytes before and after compression.
