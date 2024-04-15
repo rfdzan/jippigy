@@ -1,5 +1,5 @@
 use crate::{Compress, QUALITY};
-/// Creates a new Single struct for compressing single images.
+/// Custom configuration for building a [`Single`].
 /// This struct is not meant to be used directly.
 /// Use [`Single::from_bytes`] instead.
 #[derive(Debug, Clone)]
