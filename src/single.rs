@@ -1,4 +1,4 @@
-use crate::{Compress, QUALITY};
+use crate::{error, Compress, QUALITY};
 /// Creates a new Single struct for compressing single images.
 #[derive(Debug, Clone)]
 pub struct SingleBuilder {
@@ -78,7 +78,8 @@ impl Single {
     ///     Ok(())
     /// }
     /// ```
-    pub fn compress(self) -> Result<Vec<u8>, anyhow::Error> {
-        Ok(Compress::new(self.bytes_slice, self.quality).compress()?)
+    pub fn compress(self) -> Result<Vec<u8>, error::Error> {
+        let compress = Compress::new(self.bytes_slice, self.quality).compress()?;
+        Ok(compress)
     }
 }

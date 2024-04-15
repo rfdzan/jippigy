@@ -66,6 +66,7 @@
 mod bulk;
 mod compress;
 mod defaults;
+mod error;
 /// Single-image tasks.
 mod single;
 
