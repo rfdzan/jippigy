@@ -3,6 +3,13 @@ A multi-threaded JPEG compression crate, powered by [turbojpeg](https://github.c
 
 This crate provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
 
+# 1.0.0 release!
+Summary of breaking changes:
+- This crate now deals only with your JPEG image bytes. Meaning you have to read your images into a `Vec<u8>` or `Vec<Vec<u8>>` where the former is for `Single` and the latter `Parallel`. Both outputs `Vec<u8>` image bytes which you can save or do more image processing with.
+- It doesn't save images or create directories anymore, in fact it doesn't touch your filesystem at all.
+- Compressing with `Parallel` now uses an iterator.
+
+See the [CHANGELOG.md](https://github.com/rfdzan/jippigy/blob/master/CHANGELOG.md) for more details.
 # Error building `turbojpeg`?
 The problem is typically related to `turbojpeg-sys` (see this [question](https://github.com/rfdzan/smoljpg/issues/4#issuecomment-2036065574) and my [attempt](https://github.com/rfdzan/jippigy/actions/runs/8552014019/job/23432251063#step:3:327) at setting up CI for this crate).
 
