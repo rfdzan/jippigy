@@ -8,38 +8,47 @@ The problem is typically related to `turbojpeg-sys` (see this [question](https:/
 
 To successfully build `turbojpeg-sys`, you need to install `cmake`, a C compiler (gcc, clang, etc.), and NASM in your system (See: [`turbojpeg`](https://github.com/honzasp/rust-turbojpeg)'s [requirements](https://github.com/honzasp/rust-turbojpeg?tab=readme-ov-file#requirements)). For more details, see [`turbojpeg-sys`](https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys)'s [`Building`](https://github.com/honzasp/rust-turbojpeg/tree/master/turbojpeg-sys#building) section.
 
-# Examples
-Both `Single` and `Parallel` require you to use both of their respective `output_dir()` methods. `output_dir()` will attempt to create the directory if it doesn't exist. If it fails, it will return with an error before doing any expensive operations.
+ # Examples
 
-`with_` methods are optional.
-
-## Single JPEG compressions with `Single`
+ `with_` methods are optional.
+ ## Single image compressions with `Single`
 ```rust
-const IMAGE_DIR: &str = "/your/image/dir/";
+use jippigy::Single;
+use image::{RgbImage, ImageFormat::Jpeg};
+use std::io::Cursor;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let image_dir_path = PathBuf::from(IMAGE_DIR);
-    let _single = Single::builder(image_dir_path.join("DSC_0227.JPG"))
-        .output_dir(image_dir_path.clone())? // This method is required.
-        .with_prefix("jippigy_".to_string())
-        .with_quality(95)
+    let mut vec: Vec<u8> = Vec::new();
+    let img = RgbImage::new(1000, 1000);
+    let _write = img.write_to(&mut Cursor::new(&mut vec), Jpeg)?;
+    let _result: Vec<u8> = Single::from_bytes(vec)
+        .with_quality(80)
         .build()
         .compress()?;
     Ok(())
 }
 ```
-## Multi-threaded bulk compressions with `Parallel`
-In this example, `Parallel` will attempt to create a separate directory `your/image/dir/compressed/` if it doesn't exist and save compressed images here.
+
+ ## Multi-threaded bulk compressions with `Parallel`
 ```rust
-const IMAGE_DIR: &str = "/your/image/dir/";
+use jippigy::Parallel;
+use image::{RgbImage, ImageFormat::Jpeg};
+use std::io::Cursor;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let image_dir_path = PathBuf::from(IMAGE_DIR);
-    let _parallel = Parallel::builder(image_dir_path.clone())
-        .output_dir(image_dir_path.join("compressed"))? // This method is required.
-        .with_prefix("jippigy_".to_string())
-        .with_quality(50)
-        .with_device(6) // Use 6 threads for this job.
+    let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
+    for _ in 0..10 {
+        let mut bytes = Vec::new();
+        let img = RgbImage::new(1000, 1000);
+        let _write = img.write_to(&mut Cursor::new(&mut bytes), Jpeg).unwrap();
+        vector_of_bytes.push(bytes);
+    }
+    for result in Parallel::from_vec(vector_of_bytes)
+        .with_quality(80)
+        .with_device(4) // how many threads to use.
         .build()
-        .compress()?;
+        .into_iter() {
+        let compressed_bytes: Vec<u8> = result?;   
+        // do something with the compressed results.
+    }
     Ok(())
 }
 ```
