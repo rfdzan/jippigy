@@ -1,5 +1,4 @@
-use anyhow::bail;
-use colored::Colorize;
+use crate::error;
 use img_parts::{jpeg::Jpeg, ImageEXIF, ImageICC};
 use turbojpeg::{compress_image, decompress_image, Subsamp::Sub2x2};
 
@@ -34,16 +33,14 @@ impl Compress {
         }
     }
     /// Compresses the image with [turbojpeg](https://github.com/honzasp/rust-turbojpeg) while preserving exif data.
-    pub(crate) fn compress(&self) -> Result<Vec<u8>, anyhow::Error> {
-        // TODO: what about the filename?
+    pub(crate) fn compress(&self) -> Result<Vec<u8>, error::Error> {
         let with_exif_preserved = CompressImage::new(self.bytes.clone(), self.quality)
             .compress()?
             .into_preserve_exif()
             .preserve_exif()?;
-        with_exif_preserved.get_compressed_bytes().map_err(|e| {
-            eprintln!("{e}");
-            e.context(format!("at: {}:{}:{}", file!(), line!(), column!()))
-        })
+        // It must always be safe to unwrap this method.
+        // Otherwise exif is not preserved.
+        Ok(with_exif_preserved.get_compressed_bytes().unwrap())
     }
 }
 /// Compress an image, retaining its bytes before and after compression.
@@ -56,11 +53,35 @@ impl PreserveExif {
     /// Using the bytes retained before and after compression,
     /// Parse EXIF information from the original bytes and write it
     /// into the compressed bytes.
-    fn preserve_exif(self) -> anyhow::Result<Self> {
-        let original_img_parts = Jpeg::from_bytes(self.original_bytes.clone().into())?;
-        let exif = original_img_parts.exif().unwrap_or_default();
-        let icc_profile = original_img_parts.icc_profile().unwrap_or_default();
-        let mut compressed_img_part = Jpeg::from_bytes(self.compressed_bytes.into())?;
+    fn preserve_exif(self) -> Result<Self, error::Error> {
+        let original_img_parts = match Jpeg::from_bytes(self.original_bytes.clone().into()) {
+            Err(e) => return Err(error::Error::ImgPartError(e.to_string())),
+            Ok(res) => res,
+        };
+        let exif = match original_img_parts.exif().ok_or(error::Error::ImgPartError(
+            "Warning: No EXIF data found".to_string(),
+        )) {
+            Err(e) => {
+                eprintln!("{e}");
+                Vec::with_capacity(0).into()
+            }
+            Ok(res) => res,
+        };
+        let icc_profile = match original_img_parts
+            .icc_profile()
+            .ok_or(error::Error::ImgPartError(
+                "Warning: No ICC profile found".to_string(),
+            )) {
+            Err(e) => {
+                eprintln!("{e}");
+                Vec::with_capacity(0).into()
+            }
+            Ok(res) => res,
+        };
+        let mut compressed_img_part = match Jpeg::from_bytes(self.compressed_bytes.into()) {
+            Err(e) => return Err(error::Error::ImgPartError(e.to_string())),
+            Ok(res) => res,
+        };
         compressed_img_part.set_exif(exif.into());
         compressed_img_part.set_icc_profile(icc_profile.into());
         Ok(Self {
@@ -71,11 +92,13 @@ impl PreserveExif {
     }
     /// Returns the compressed bytes with EXIF preserved.
     /// Fails if EXIF has not been preserved yet.
-    fn get_compressed_bytes(self) -> Result<Vec<u8>, anyhow::Error> {
+    fn get_compressed_bytes(self) -> Result<Vec<u8>, error::Error> {
         if self.compressed_bytes.is_empty() && !self.with_exif_preserved.is_empty() {
             Ok(self.with_exif_preserved)
         } else {
-            bail!("BUG: EXIF is not preserved.".red());
+            Err(error::Error::JippigyInternalError(
+                "BUG: EXIF data is not preserved.".to_string(),
+            ))
         }
     }
 }
@@ -94,9 +117,15 @@ impl CompressImage {
         }
     }
     /// Compresses image file, retaining original and compressed bytes. Returns self.
-    fn compress(mut self) -> anyhow::Result<Self> {
-        let image: image::RgbImage = decompress_image(self.bytes.as_slice())?;
-        let jpeg_data = compress_image(&image, i32::from(self.q), Sub2x2)?;
+    fn compress(mut self) -> Result<Self, error::Error> {
+        let image: image::RgbImage = match decompress_image(self.bytes.as_slice()) {
+            Err(e) => return Err(error::Error::TurboJPEGError(e.to_string())),
+            Ok(res) => res,
+        };
+        let jpeg_data = match compress_image(&image, i32::from(self.q), Sub2x2) {
+            Err(e) => return Err(error::Error::TurboJPEGError(e.to_string())),
+            Ok(res) => res,
+        };
         self.compressed_bytes = jpeg_data.to_vec();
         Ok(self)
     }
