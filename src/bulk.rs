@@ -12,15 +12,6 @@ pub struct ParallelBuilder {
     quality: u8,
     device_num: u8,
 }
-impl Default for ParallelBuilder {
-    fn default() -> Self {
-        Self {
-            vec: Default::default(),
-            quality: QUALITY,
-            device_num: DEVICE,
-        }
-    }
-}
 impl ParallelBuilder {
     /// Specifies the quality of compressed images.
     /// Defaults to 95 (95% of the original quality).

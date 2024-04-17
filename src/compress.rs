@@ -55,7 +55,7 @@ impl PreserveExif {
     /// Parse EXIF information from the original bytes and write it
     /// into the compressed bytes.
     fn preserve_exif(self) -> Result<Self, error::Error> {
-        let original_img_parts = match Jpeg::from_bytes(self.original_bytes.clone().into()) {
+        let original_img_parts = match Jpeg::from_bytes(self.original_bytes.into()) {
             Err(e) => return Err(error::Error::ImgPartError(e.to_string())),
             Ok(res) => res,
         };
@@ -86,8 +86,8 @@ impl PreserveExif {
         compressed_img_part.set_exif(exif.into());
         compressed_img_part.set_icc_profile(icc_profile.into());
         Ok(Self {
-            original_bytes: self.original_bytes,
-            compressed_bytes: Vec::with_capacity(0), // raw compressed bytes is no longer needed
+            original_bytes: Vec::with_capacity(0),   // no longer needed
+            compressed_bytes: Vec::with_capacity(0), // no longer needed
             with_exif_preserved: compressed_img_part.encoder().bytes().to_vec(),
         })
     }
