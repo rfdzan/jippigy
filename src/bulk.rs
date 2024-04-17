@@ -22,6 +22,30 @@ impl Default for ParallelBuilder {
     }
 }
 impl ParallelBuilder {
+    /// Builds a new [`Parallel`] with default or specified configuration.
+    /// # Example
+    /// This is the minimal requirements for using this method:
+    /// ```
+    /// # fn main() {
+    /// # use jippigy::Parallel;
+    /// let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
+    /// let _build = Parallel::from_vec(vector_of_bytes).build();
+    /// # }
+    /// ```
+    pub fn build(self) -> Parallel {
+        let (tx, rx) = channel::unbounded();
+        Parallel {
+            main_worker: Worker::new_fifo(),
+            vec: self.vec,
+            to_thread: StuffThatNeedsToBeSent {
+                device_num: self.device_num,
+                quality: self.quality,
+                stealers: Vec::with_capacity(usize::from(self.device_num)),
+            },
+            transmitter: tx,
+            receiver: rx,
+        }
+    }
     /// Specifies the quality of compressed images.
     /// Defaults to 95 (95% of the original quality).
     ///
@@ -46,32 +70,6 @@ impl ParallelBuilder {
             vec: self.vec,
             quality: self.quality,
             device_num,
-        }
-    }
-}
-impl ParallelBuilder {
-    /// Builds a new [`Parallel`] with default or specified configuration.
-    /// # Example
-    /// This is the minimal requirements for using this method:
-    /// ```
-    /// # fn main() {
-    /// # use jippigy::Parallel;
-    /// let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
-    /// let _build = Parallel::from_vec(vector_of_bytes).build();
-    /// # }
-    /// ```
-    pub fn build(self) -> Parallel {
-        let (tx, rx) = channel::unbounded();
-        Parallel {
-            main_worker: Worker::new_fifo(),
-            vec: self.vec,
-            to_thread: StuffThatNeedsToBeSent {
-                device_num: self.device_num,
-                quality: self.quality,
-                stealers: Vec::with_capacity(usize::from(self.device_num)),
-            },
-            transmitter: tx,
-            receiver: rx,
         }
     }
 }
@@ -101,10 +99,10 @@ impl StuffThatNeedsToBeSent {
                             continue;
                         };
                         for stealer in stealer_guard.iter() {
-                            let Steal::Success(direntry) = stealer.steal() else {
+                            let Steal::Success(jpeg_bytes) = stealer.steal() else {
                                 continue;
                             };
-                            payload.push(direntry);
+                            payload.push(jpeg_bytes);
                             break;
                         }
                         let _checks = stealer_guard
