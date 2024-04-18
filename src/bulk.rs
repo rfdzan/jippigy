@@ -63,12 +63,12 @@ impl ParallelBuilder {
     pub fn build(self) -> Parallel {
         let (tx, rx) = channel::unbounded();
         Parallel {
-            main_worker: Worker::new_fifo(),
-            vec: self.vec,
+            // main_worker: Worker::new_fifo(),
             to_thread: StuffThatNeedsToBeSent {
+                vec: self.vec,
                 device_num: self.device_num,
                 quality: self.quality,
-                stealers: Vec::with_capacity(usize::from(self.device_num)),
+                // stealers: Vec::with_capacity(usize::from(self.device_num)),
             },
             transmitter: tx,
             receiver: rx,
@@ -77,9 +77,10 @@ impl ParallelBuilder {
 }
 #[derive(Debug)]
 pub struct StuffThatNeedsToBeSent {
+    vec: Vec<Vec<u8>>,
     device_num: u8,
     quality: u8,
-    stealers: Vec<Stealer<Vec<u8>>>,
+    // stealers: Vec<Stealer<Vec<u8>>>,
 }
 impl StuffThatNeedsToBeSent {
     /// Compress images in parallel.
@@ -88,35 +89,39 @@ impl StuffThatNeedsToBeSent {
         tx: channel::Sender<Result<Vec<u8>, error::Error>>,
     ) -> Vec<thread::JoinHandle<()>> {
         let mut handles = Vec::with_capacity(usize::from(self.device_num));
-        let to_steal_from = Arc::new(Mutex::new(self.stealers));
+        // let to_steal_from = Arc::new(Mutex::new(self.stealers));
+        let to_steal_from = Arc::new(Mutex::new(self.vec));
         for _ in 0..self.device_num {
             let local_stealer = Arc::clone(&to_steal_from);
             let local_transmitter = tx.clone();
             let handle = thread::spawn(move || {
-                let mut are_queues_empty = Vec::with_capacity(usize::from(self.device_num));
+                // let mut are_queues_empty = Vec::with_capacity(usize::from(self.device_num));
                 let mut payload = Vec::with_capacity(1);
                 loop {
                     {
-                        let Some(stealer_guard) = local_stealer.try_lock().ok() else {
+                        let Some(mut stealer_guard) = local_stealer.try_lock().ok() else {
                             continue;
                         };
-                        for stealer in stealer_guard.iter() {
-                            let Steal::Success(direntry) = stealer.steal() else {
-                                continue;
-                            };
-                            payload.push(direntry);
+                        // for stealer in stealer_guard.iter() {
+                        //     let Steal::Success(direntry) = stealer.steal() else {
+                        //         continue;
+                        //     };
+                        if let Some(bytes) = stealer_guard.pop() {
+                            payload.push(bytes);
+                        } else {
                             break;
                         }
-                        let _checks = stealer_guard
-                            .iter()
-                            .map(|stealer| {
-                                if stealer.is_empty() {
-                                    are_queues_empty.push(true);
-                                } else {
-                                    are_queues_empty.push(false);
-                                }
-                            })
-                            .collect::<Vec<_>>();
+                        // let _checks = stealer_guard
+                        //     .iter()
+                        //     .map(|stealer| {
+                        //         if stealer.is_empty() {
+                        //             are_queues_empty.push(true);
+                        //         } else {
+                        //             are_queues_empty.push(false);
+                        //         }
+                        //     })
+                        //     .collect::<Vec<_>>();
+
                         // lock is no longer needed past this point
                     }
                     if let Some(bytes) = payload.pop() {
@@ -129,10 +134,10 @@ impl StuffThatNeedsToBeSent {
                         }
                     }
                     // if all stealers are empty, exit the loop.
-                    if are_queues_empty.iter().all(|val| val == &true) {
-                        break;
-                    }
-                    are_queues_empty.clear();
+                    // if are_queues_empty.iter().all(|val| val == &true) {
+                    //     break;
+                    // }
+                    // are_queues_empty.clear();
                     payload.clear();
                 }
             });
@@ -144,8 +149,7 @@ impl StuffThatNeedsToBeSent {
 /// Parallelized compression task.
 #[derive(Debug)]
 pub struct Parallel {
-    main_worker: Worker<Vec<u8>>,
-    vec: Vec<Vec<u8>>,
+    // main_worker: Worker<Vec<u8>>,
     to_thread: StuffThatNeedsToBeSent,
     transmitter: channel::Sender<Result<Vec<u8>, error::Error>>,
     receiver: channel::Receiver<Result<Vec<u8>, error::Error>>,
@@ -184,12 +188,12 @@ impl Parallel {
         }
     }
     fn compress(mut self) -> Vec<JoinHandle<()>> {
-        for _ in 0..self.to_thread.device_num {
-            self.to_thread.stealers.push(self.main_worker.stealer());
-        }
-        for bytes in self.vec {
-            self.main_worker.push(bytes);
-        }
+        // for _ in 0..self.to_thread.device_num {
+        //     self.to_thread.stealers.push(self.main_worker.stealer());
+        // }
+        // for bytes in self.vec {
+        //     self.main_worker.push(bytes);
+        // }
         let handles = self.to_thread.send_to_threads(self.transmitter);
         handles
     }
