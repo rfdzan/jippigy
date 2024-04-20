@@ -11,7 +11,7 @@ readme = "README.md"
 exclude = ["src/main.rs"]
 
 [dependencies]
-crossbeam = { version = "0.8.4", features = ["crossbeam-deque"] }
+crossbeam = "0.8.4"
 image = "0.24.9"
 img-parts = "0.3.0"
 thiserror = "1.0.58"
