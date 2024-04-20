@@ -87,7 +87,6 @@ impl StuffThatNeedsToBeSent {
     ) -> Vec<thread::JoinHandle<()>> {
         let mut handles = Vec::with_capacity(usize::from(self.device_num));
         let counter = Arc::new(Mutex::new(0usize));
-        // let to_steal_from = Arc::new(Mutex::new(self.stealers));
         let to_steal_from = Arc::new(Mutex::new(self.vec));
         for _ in 0..self.device_num {
             let local_stealer = Arc::clone(&to_steal_from);
@@ -97,7 +96,7 @@ impl StuffThatNeedsToBeSent {
                 let mut payload = Vec::with_capacity(1);
                 loop {
                     {
-                        let Some(mut stealer_guard) = local_stealer.try_lock().ok() else {
+                        let Some(mut stealer_guard) = local_stealer.lock().ok() else {
                             continue;
                         };
                         if let Some(bytes) = stealer_guard.pop_front() {
@@ -111,7 +110,7 @@ impl StuffThatNeedsToBeSent {
                         let compress_result = Compress::new(content.1, self.quality).compress();
                         loop {
                             {
-                                let Some(mut counter_guard) = local_counter.try_lock().ok() else {
+                                let Some(mut counter_guard) = local_counter.lock().ok() else {
                                     continue;
                                 };
                                 if !(*counter_guard == content.0) {
