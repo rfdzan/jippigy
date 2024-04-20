@@ -163,7 +163,7 @@ impl Parallel {
     ///     let _parallel = Parallel::from_vec(vector_of_bytes);
     /// }
     /// ```
-    /// In order to start the compression, it has to be built and made into an iterator with `into_iter`:
+    /// In order to start the compression, it has to be made into an iterator with `into_iter`:
     /// ```
     /// use jippigy::Parallel;
     /// fn main() -> Result<(), Box<dyn std::error::Error>> {
