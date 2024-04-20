@@ -105,26 +105,11 @@ impl StuffThatNeedsToBeSent {
                         let Some(mut stealer_guard) = local_stealer.try_lock().ok() else {
                             continue;
                         };
-                        // for stealer in stealer_guard.iter() {
-                        //     let Steal::Success(direntry) = stealer.steal() else {
-                        //         continue;
-                        //     };
                         if let Some(bytes) = stealer_guard.pop_front() {
                             payload.push(bytes);
                         } else {
                             break;
                         }
-                        // let _checks = stealer_guard
-                        //     .iter()
-                        //     .map(|stealer| {
-                        //         if stealer.is_empty() {
-                        //             are_queues_empty.push(true);
-                        //         } else {
-                        //             are_queues_empty.push(false);
-                        //         }
-                        //     })
-                        //     .collect::<Vec<_>>();
-
                         // lock is no longer needed past this point
                     }
                     if let Some(content) = payload.pop() {
@@ -132,13 +117,9 @@ impl StuffThatNeedsToBeSent {
                         loop {
                             {
                                 let Some(mut counter_guard) = local_counter.try_lock().ok() else {
-                                    // println!("contending for lock");
                                     continue;
                                 };
                                 if !(*counter_guard == content.0) {
-                                    // println!("{}", content.0);
-                                    // println!("stuck in this check");
-                                    // drop(counter_guard);
                                     continue;
                                 } else {
                                     *counter_guard = *counter_guard + 1;
@@ -150,15 +131,9 @@ impl StuffThatNeedsToBeSent {
                                 }
                                 Ok(_) => {}
                             }
-                            // println!("here");
                             break;
                         }
                     }
-                    // if all stealers are empty, exit the loop.
-                    // if are_queues_empty.iter().all(|val| val == &true) {
-                    //     break;
-                    // }
-                    // are_queues_empty.clear();
                     payload.clear();
                 }
             });
