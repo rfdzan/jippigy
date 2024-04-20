@@ -124,12 +124,12 @@ impl StuffThatNeedsToBeSent {
                                 } else {
                                     *counter_guard = *counter_guard + 1;
                                 }
-                            }
-                            match local_transmitter.send(compress_result) {
-                                Err(e) => {
-                                    eprintln!("{e:#?}");
+                                match local_transmitter.send(compress_result) {
+                                    Err(e) => {
+                                        eprintln!("{e:#?}");
+                                    }
+                                    Ok(_) => {}
                                 }
-                                Ok(_) => {}
                             }
                             break;
                         }
