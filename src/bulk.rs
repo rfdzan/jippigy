@@ -12,16 +12,31 @@ pub struct ParallelBuilder {
     quality: u8,
     device_num: u8,
 }
-impl Default for ParallelBuilder {
-    fn default() -> Self {
-        Self {
-            vec: Default::default(),
-            quality: QUALITY,
-            device_num: DEVICE,
+impl ParallelBuilder {
+    /// Builds a new [`Parallel`] with default or specified configuration.
+    /// # Example
+    /// This is the minimal requirements for using this method:
+    /// ```
+    /// # fn main() {
+    /// # use jippigy::Parallel;
+    /// let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
+    /// let _build = Parallel::from_vec(vector_of_bytes).build();
+    /// # }
+    /// ```
+    pub fn build(self) -> Parallel {
+        let (tx, rx) = channel::unbounded();
+        Parallel {
+            main_worker: Worker::new_fifo(),
+            vec: self.vec,
+            to_thread: StuffThatNeedsToBeSent {
+                device_num: self.device_num,
+                quality: self.quality,
+                stealers: Vec::with_capacity(usize::from(self.device_num)),
+            },
+            transmitter: tx,
+            receiver: rx,
         }
     }
-}
-impl ParallelBuilder {
     /// Specifies the quality of compressed images.
     /// Defaults to 95 (95% of the original quality).
     ///
@@ -73,6 +88,7 @@ impl ParallelBuilder {
         }
     }
 }
+
 #[derive(Debug)]
 pub struct StuffThatNeedsToBeSent {
     vec: VecDeque<(usize, Vec<u8>)>,
@@ -156,7 +172,7 @@ impl Parallel {
     ///     let _parallel = Parallel::from_vec(vector_of_bytes);
     /// }
     /// ```
-    /// In order to start the compression, it has to be built and made into an iterator with `into_iter`:
+    /// In order to start the compression, it has to be made into an iterator with `into_iter`:
     /// ```
     /// use jippigy::Parallel;
     /// fn main() -> Result<(), Box<dyn std::error::Error>> {

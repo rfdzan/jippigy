@@ -1,14 +1,34 @@
-# 15 April 2024: 1.0.0
-- **This crate now only process JPEG bytes. All other filesystem processes is handed over to the user of the crate.**
-- Renamed primary public API to `Single::from_bytes` and `Parallel::from_vec` which reflect their input types.
-- `Parallel` now produces an iterator via `into_iter()` to iterate over compression results sent by spawned threads.
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+## [1.0.0] - 2024-04-15
+### Added
+- Added public methods `Single::from_bytes` and `Parallel::from_vec`.
 - Added crate error enumerations.
+- Added documentations & tests.
+- Added dependency `thiserror`
+### Changed
+- **This crate now only process JPEG bytes.** It no longer interacts with your filesystem. Meaning it doesn't read and/or write files, nor does it read and/or create directories.
+- `Parallel` now produces an iterator via `into_iter()` to iterate over compression results sent by spawned threads.
+- `compress` method in `Single` is now fallible.
+### Removed
 - Removed mandatory method `output_dir()`.
-- Removed dependency: `clap`, `anyhow`, `colored`.
-# 04 April 2024: 0.4.0
-- now stands as its own crate, called 'jippigy' (previously a cli tool [smoljpg](https://github.com/rfdzan/smoljpg)).
-- defining public API, added tests and documentations.
-# 22 March 2024: 0.3.0
-- cli: Output directory is now optional. Previously, specifying custom quality requires specifying an output directory as well.
-# 17 March 2024: 0.2.0
-- feature: allow single image compression.
+- Removed dependencies: `clap`, `anyhow`, `colored`.
+### Fixed
+- Updated README.
+
+## [0.4.0] - 2024-04-04
+- **Now stands as its own crate**, called 'jippigy' (previously a cli tool [smoljpg](https://github.com/rfdzan/smoljpg)).
+### Added
+- Added `Single` and `Parallel` for processing JPEG images.
+- Added required methods `output_dir`.
+- Added optional methods prefixed by `with_`.
+### Changed
+- Renamed project to "jippigy".
+- Renamed compression-invoking methods to `compress`.
+### Fixed
+- Updated README.
