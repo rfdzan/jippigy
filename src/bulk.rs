@@ -28,7 +28,7 @@ impl ParallelBuilder {
         Parallel {
             main_worker: Worker::new_fifo(),
             vec: self.vec,
-            to_thread: StuffThatNeedsToBeSent {
+            to_thread: ToThread {
                 device_num: self.device_num,
                 quality: self.quality,
                 stealers: Vec::with_capacity(usize::from(self.device_num)),
@@ -65,12 +65,12 @@ impl ParallelBuilder {
     }
 }
 #[derive(Debug)]
-pub struct StuffThatNeedsToBeSent {
+pub struct ToThread {
     device_num: u8,
     quality: u8,
     stealers: Vec<Stealer<Vec<u8>>>,
 }
-impl StuffThatNeedsToBeSent {
+impl ToThread {
     /// Compress images in parallel.
     fn send_to_threads(
         self,
@@ -135,7 +135,7 @@ impl StuffThatNeedsToBeSent {
 pub struct Parallel {
     main_worker: Worker<Vec<u8>>,
     vec: Vec<Vec<u8>>,
-    to_thread: StuffThatNeedsToBeSent,
+    to_thread: ToThread,
     transmitter: channel::Sender<Result<Vec<u8>, error::Error>>,
     receiver: channel::Receiver<Result<Vec<u8>, error::Error>>,
 }
@@ -192,7 +192,7 @@ impl IntoIterator for Parallel {
         ParallelIntoIterator::new(receiver, handles)
     }
 }
-
+/// Target type when converting [`Parallel`] into an iterator.
 pub struct ParallelIntoIterator {
     recv: channel::Receiver<Result<Vec<u8>, error::Error>>,
 }
@@ -205,6 +205,7 @@ impl ParallelIntoIterator {
     }
 }
 impl Iterator for ParallelIntoIterator {
+    /// A fallible containing the compressed JPEG bytes.
     type Item = Result<Vec<u8>, error::Error>;
     fn next(&mut self) -> Option<Self::Item> {
         if let Ok(result) = self.recv.recv() {
