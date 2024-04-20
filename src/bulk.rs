@@ -130,28 +130,28 @@ impl StuffThatNeedsToBeSent {
                     if let Some(content) = payload.pop() {
                         let compress_result = Compress::new(content.1, self.quality).compress();
                         loop {
-                            let Some(mut counter_guard) = local_counter.try_lock().ok() else {
-                                // println!("contending for lock");
-                                continue;
-                            };
-                            if !(*counter_guard == content.0) {
-                                // println!("{}", content.0);
-                                // println!("stuck in this check");
-                                drop(counter_guard);
-                                continue;
-                            } else {
-                                *counter_guard = *counter_guard + 1;
-                                // println!("{}", counter_guard);
-                                drop(counter_guard);
-                                match local_transmitter.send(compress_result) {
-                                    Err(e) => {
-                                        eprintln!("{e:#?}");
-                                    }
-                                    Ok(_) => {}
+                            {
+                                let Some(mut counter_guard) = local_counter.try_lock().ok() else {
+                                    // println!("contending for lock");
+                                    continue;
+                                };
+                                if !(*counter_guard == content.0) {
+                                    // println!("{}", content.0);
+                                    // println!("stuck in this check");
+                                    // drop(counter_guard);
+                                    continue;
+                                } else {
+                                    *counter_guard = *counter_guard + 1;
                                 }
-                                // println!("here");
-                                break;
                             }
+                            match local_transmitter.send(compress_result) {
+                                Err(e) => {
+                                    eprintln!("{e:#?}");
+                                }
+                                Ok(_) => {}
+                            }
+                            // println!("here");
+                            break;
                         }
                     }
                     // if all stealers are empty, exit the loop.
