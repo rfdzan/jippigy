@@ -1,6 +1,7 @@
 use crate::{error, Compress, DEVICE, QUALITY};
 use crossbeam::channel;
 use crossbeam::deque::{Steal, Stealer, Worker};
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 /// Custom configuration for building a [`Parallel`].
@@ -8,7 +9,7 @@ use std::thread::{self, JoinHandle};
 /// Use [`Parallel::from_vec`] instead.
 #[derive(Debug, Clone)]
 pub struct ParallelBuilder {
-    vec: Vec<Vec<u8>>,
+    vec: VecDeque<(usize, Vec<u8>)>,
     quality: u8,
     device_num: u8,
 }
@@ -77,7 +78,7 @@ impl ParallelBuilder {
 }
 #[derive(Debug)]
 pub struct StuffThatNeedsToBeSent {
-    vec: Vec<Vec<u8>>,
+    vec: VecDeque<(usize, Vec<u8>)>,
     device_num: u8,
     quality: u8,
     // stealers: Vec<Stealer<Vec<u8>>>,
@@ -89,10 +90,12 @@ impl StuffThatNeedsToBeSent {
         tx: channel::Sender<Result<Vec<u8>, error::Error>>,
     ) -> Vec<thread::JoinHandle<()>> {
         let mut handles = Vec::with_capacity(usize::from(self.device_num));
+        let counter = Arc::new(Mutex::new(0usize));
         // let to_steal_from = Arc::new(Mutex::new(self.stealers));
         let to_steal_from = Arc::new(Mutex::new(self.vec));
         for _ in 0..self.device_num {
             let local_stealer = Arc::clone(&to_steal_from);
+            let local_counter = Arc::clone(&counter);
             let local_transmitter = tx.clone();
             let handle = thread::spawn(move || {
                 // let mut are_queues_empty = Vec::with_capacity(usize::from(self.device_num));
@@ -106,7 +109,7 @@ impl StuffThatNeedsToBeSent {
                         //     let Steal::Success(direntry) = stealer.steal() else {
                         //         continue;
                         //     };
-                        if let Some(bytes) = stealer_guard.pop() {
+                        if let Some(bytes) = stealer_guard.pop_front() {
                             payload.push(bytes);
                         } else {
                             break;
@@ -124,13 +127,31 @@ impl StuffThatNeedsToBeSent {
 
                         // lock is no longer needed past this point
                     }
-                    if let Some(bytes) = payload.pop() {
-                        let compress_result = Compress::new(bytes, self.quality).compress();
-                        match local_transmitter.send(compress_result) {
-                            Err(e) => {
-                                eprintln!("{e:#?}");
+                    if let Some(content) = payload.pop() {
+                        let compress_result = Compress::new(content.1, self.quality).compress();
+                        loop {
+                            let Some(mut counter_guard) = local_counter.try_lock().ok() else {
+                                // println!("contending for lock");
+                                continue;
+                            };
+                            if !(*counter_guard == content.0) {
+                                // println!("{}", content.0);
+                                // println!("stuck in this check");
+                                drop(counter_guard);
+                                continue;
+                            } else {
+                                *counter_guard = *counter_guard + 1;
+                                // println!("{}", counter_guard);
+                                drop(counter_guard);
+                                match local_transmitter.send(compress_result) {
+                                    Err(e) => {
+                                        eprintln!("{e:#?}");
+                                    }
+                                    Ok(_) => {}
+                                }
+                                // println!("here");
+                                break;
                             }
-                            Ok(_) => {}
                         }
                     }
                     // if all stealers are empty, exit the loop.
@@ -182,12 +203,16 @@ impl Parallel {
     /// ```
     pub fn from_vec(vec: Vec<Vec<u8>>) -> ParallelBuilder {
         ParallelBuilder {
-            vec,
+            vec: vec
+                .into_iter()
+                .enumerate()
+                .map(|content| content)
+                .collect::<VecDeque<(usize, Vec<u8>)>>(),
             quality: QUALITY,
             device_num: DEVICE,
         }
     }
-    fn compress(mut self) -> Vec<JoinHandle<()>> {
+    fn compress(self) -> Vec<JoinHandle<()>> {
         // for _ in 0..self.to_thread.device_num {
         //     self.to_thread.stealers.push(self.main_worker.stealer());
         // }
