@@ -1,6 +1,5 @@
 use crate::{error, Compress, DEVICE, QUALITY};
 use crossbeam::channel;
-use crossbeam::deque::{Steal, Stealer, Worker};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -64,12 +63,10 @@ impl ParallelBuilder {
     pub fn build(self) -> Parallel {
         let (tx, rx) = channel::unbounded();
         Parallel {
-            // main_worker: Worker::new_fifo(),
             to_thread: StuffThatNeedsToBeSent {
                 vec: self.vec,
                 device_num: self.device_num,
                 quality: self.quality,
-                // stealers: Vec::with_capacity(usize::from(self.device_num)),
             },
             transmitter: tx,
             receiver: rx,
@@ -81,7 +78,6 @@ pub struct StuffThatNeedsToBeSent {
     vec: VecDeque<(usize, Vec<u8>)>,
     device_num: u8,
     quality: u8,
-    // stealers: Vec<Stealer<Vec<u8>>>,
 }
 impl StuffThatNeedsToBeSent {
     /// Compress images in parallel.
@@ -98,7 +94,6 @@ impl StuffThatNeedsToBeSent {
             let local_counter = Arc::clone(&counter);
             let local_transmitter = tx.clone();
             let handle = thread::spawn(move || {
-                // let mut are_queues_empty = Vec::with_capacity(usize::from(self.device_num));
                 let mut payload = Vec::with_capacity(1);
                 loop {
                     {
@@ -145,7 +140,6 @@ impl StuffThatNeedsToBeSent {
 /// Parallelized compression task.
 #[derive(Debug)]
 pub struct Parallel {
-    // main_worker: Worker<Vec<u8>>,
     to_thread: StuffThatNeedsToBeSent,
     transmitter: channel::Sender<Result<Vec<u8>, error::Error>>,
     receiver: channel::Receiver<Result<Vec<u8>, error::Error>>,
@@ -188,12 +182,6 @@ impl Parallel {
         }
     }
     fn compress(self) -> Vec<JoinHandle<()>> {
-        // for _ in 0..self.to_thread.device_num {
-        //     self.to_thread.stealers.push(self.main_worker.stealer());
-        // }
-        // for bytes in self.vec {
-        //     self.main_worker.push(bytes);
-        // }
         let handles = self.to_thread.send_to_threads(self.transmitter);
         handles
     }
