@@ -50,6 +50,7 @@ fn test_basic_success_parallel() {
     }
 }
 #[test]
+/// This test attempts to check ONLY the **ordering** of the input original JPEG files and output compressed files. This check takes a while (adds around 3 mins of overall test time on low spec hardware) and it uses around 3-4 GBs of RAM.
 fn test_ordering() {
     let test_img_path = "/home/user/Pictures/compare_img_test";
     let path = PathBuf::from(test_img_path);
@@ -96,9 +97,15 @@ fn test_ordering() {
         })
         .collect::<Vec<_>>();
     println!("compressed {} images", compressed.len());
+    let mut handles = Vec::new();
     for (bytes, filename_outer) in original_rbg8.iter().zip(filenames.clone()) {
-        let mut handles = Vec::new();
         for (compressed_bytes, filename_inner) in compressed.iter().zip(filenames.clone()) {
+            // This check assumes that two vectors `original_rgb8` and `compressed` is ordered in the exact same way with the order their paths are returned in `filenames`.
+
+            // By zipping `original_rgb8` and `compressed` with `filenames` each, we can choose to check ONLY the images with the exact same filenames to avoid checking each item of `original_rgb8` against `compressed` which will take a long time.
+            if !(filename_inner.as_str() == filename_outer.as_str()) {
+                continue;
+            }
             let local_bytes = bytes.clone();
             let local_compressed_bytes = compressed_bytes.clone();
             let local_filename_outer = filename_outer.clone();
@@ -107,12 +114,19 @@ fn test_ordering() {
                     image_compare::rgb_hybrid_compare(&local_bytes, &local_compressed_bytes)
                         .unwrap()
                         .score;
-                println!("{local_filename_outer} and {filename_inner} score: {result}");
+                let result_as_percentage = result * 100.0;
+                // With our initial assumption that vectors `filenames`, `original_rgb8` and `compressed` are all ordered in the exact same way, it means on every check we must be checking two of the same image (one is original the other is the compressed version of it) so it must have a similarity score (for this test and dataset anyway) above 60%.
+
+                // disclaimer: this threshold is chosen for this dataset ONLY and it only tests that the output is ordered in the EXACT same way which allows users to do things like storing filenames in one vector, the compressed jpeg bytes in another and zipping them both so the same image will ever only have one filename and it is not mixed up with other images.
+                assert!(result_as_percentage > 60.0);
+                println!(
+                    "{local_filename_outer} and {filename_inner} score: {result_as_percentage:.2}"
+                );
             });
             handles.push(handle);
         }
-        for handle in handles.into_iter() {
-            handle.join().unwrap();
-        }
+    }
+    for handle in handles.into_iter() {
+        handle.join().unwrap();
     }
 }
