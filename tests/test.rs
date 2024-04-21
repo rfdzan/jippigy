@@ -52,7 +52,7 @@ fn test_basic_success_parallel() {
 #[test]
 /// This test attempts to check ONLY the **ordering** of the input original JPEG files and output compressed files. This check takes a while (adds around 3 mins of overall test time on low spec hardware) and it uses around 3-4 GBs of RAM.
 fn test_ordering() {
-    let test_img_path = "/home/user/Pictures/compare_img_test";
+    let test_img_path = "./tests/images/";
     let path = PathBuf::from(test_img_path);
     let read = std::fs::read_dir(path).unwrap();
     let mut filenames = Vec::new();
