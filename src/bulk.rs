@@ -103,11 +103,14 @@ impl StuffThatNeedsToBeSent {
                                 let Some(mut counter_guard) = local_counter.lock().ok() else {
                                     continue;
                                 };
+                                // if the counter matches the index...
                                 if !(*counter_guard == content.0) {
                                     continue;
                                 } else {
+                                    // ...increment this counter...
                                     *counter_guard = *counter_guard + 1;
                                 }
+                                // ...and send it down the channel.
                                 match local_transmitter.send(compress_result) {
                                     Err(e) => {
                                         eprintln!("{e:#?}");
@@ -185,6 +188,7 @@ impl IntoIterator for Parallel {
     }
 }
 
+/// Target type when converting [`Parallel`] into an iterator.
 pub struct ParallelIntoIterator {
     recv: channel::Receiver<Result<Vec<u8>, error::Error>>,
 }
@@ -197,6 +201,7 @@ impl ParallelIntoIterator {
     }
 }
 impl Iterator for ParallelIntoIterator {
+    /// A fallible containing compressed JPEG bytes.
     type Item = Result<Vec<u8>, error::Error>;
     fn next(&mut self) -> Option<Self::Item> {
         if let Ok(result) = self.recv.recv() {
