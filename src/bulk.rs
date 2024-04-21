@@ -26,7 +26,7 @@ impl ParallelBuilder {
     pub fn build(self) -> Parallel {
         let (tx, rx) = channel::unbounded();
         Parallel {
-            to_thread: StuffThatNeedsToBeSent {
+            to_thread: ToThread {
                 vec: self.vec,
                 device_num: self.device_num,
                 quality: self.quality,
@@ -64,12 +64,12 @@ impl ParallelBuilder {
 }
 
 #[derive(Debug)]
-pub struct StuffThatNeedsToBeSent {
+pub struct ToThread {
     vec: VecDeque<(usize, Vec<u8>)>,
     device_num: u8,
     quality: u8,
 }
-impl StuffThatNeedsToBeSent {
+impl ToThread {
     /// Compress images in parallel.
     fn send_to_threads(
         self,
@@ -132,7 +132,7 @@ impl StuffThatNeedsToBeSent {
 /// Parallelized compression task.
 #[derive(Debug)]
 pub struct Parallel {
-    to_thread: StuffThatNeedsToBeSent,
+    to_thread: ToThread,
     transmitter: channel::Sender<Result<Vec<u8>, error::Error>>,
     receiver: channel::Receiver<Result<Vec<u8>, error::Error>>,
 }
