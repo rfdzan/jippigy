@@ -33,7 +33,7 @@
 //!```
 //!
 //! ## Multi-threaded bulk compressions with [`Parallel`]
-//! Since [`Parallel`] returns items in the same order they were passed into, you can do something like the example below where you save the filenames of your JPEG into a vector, and later zip it with the [`Parallel`] iterator you've made.
+//! via [`into_iter()`](Parallel::into_iter()), [`Parallel`] converts into [`ParallelIntoIterator`] which returns items in the same order they were passed in. Which means, you can do something like the example below where you save the filenames of your JPEG into a vector, and later zip it with the [`ParallelIntoIterator`] you've made.
 //!```
 //! use jippigy::Parallel;
 //! use std::path::PathBuf;
