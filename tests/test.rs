@@ -1,6 +1,8 @@
 use image::{ImageFormat::Jpeg, RgbImage};
+use image_compare::Algorithm;
 use jippigy::{Parallel, Single};
 use std::io::Cursor;
+use std::path::PathBuf;
 
 struct Dummy {}
 impl Dummy {
@@ -44,5 +46,61 @@ fn test_basic_success_parallel() {
     }
     for res in Parallel::from_vec(success).build().into_iter() {
         assert!(res.is_ok());
+    }
+}
+#[test]
+fn test_ordering() {
+    let test_img_path = "/home/user/Pictures/compare_img_test";
+    let path = PathBuf::from(test_img_path);
+    let read = std::fs::read_dir(path).unwrap();
+    let mut filenames = Vec::new();
+    let original = read
+        .into_iter()
+        .flatten()
+        .filter(|direntry| direntry.path().is_file())
+        .map(|direntry| {
+            filenames.push(
+                direntry
+                    .path()
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_str()
+                    .unwrap_or_default()
+                    .to_string(),
+            );
+            std::fs::read(direntry.path()).unwrap()
+        })
+        .collect::<Vec<Vec<u8>>>();
+    println!("loaded {} images", original.len());
+    let original_rbg8 = original
+        .clone()
+        .into_iter()
+        .map(|b| {
+            image::load_from_memory_with_format(b.as_slice(), image::ImageFormat::Jpeg)
+                .expect("error:\n")
+                .into_rgb8()
+        })
+        .collect::<Vec<_>>();
+    println!("converted {} images to rbg8", original_rbg8.len());
+    let compressed = Parallel::from_vec(original)
+        .with_quality(50)
+        .with_device(4)
+        .build()
+        .into_iter()
+        .flatten()
+        .map(|r| {
+            image::load_from_memory_with_format(r.as_slice(), image::ImageFormat::Jpeg)
+                .expect("error:\n")
+                .into_rgb8()
+        })
+        .collect::<Vec<_>>();
+    println!("compressed {} images", compressed.len());
+    for (bytes, filename_outer) in original_rbg8.iter().zip(filenames.clone()) {
+        for (compressed_bytes, filename_inner) in compressed.iter().zip(filenames.clone()) {
+            let result = image_compare::rgb_hybrid_compare(bytes, compressed_bytes)
+                .unwrap()
+                .score;
+            println!("{filename_outer} and {filename_inner} score: {result}");
+        }
     }
 }
