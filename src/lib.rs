@@ -35,24 +35,53 @@
 //! ## Multi-threaded bulk compressions with [`Parallel`]
 //!```
 //! use jippigy::Parallel;
+//! use std::path::PathBuf;
+//! use tempdir::TempDir;
+//! # const TEST_DIR: &str = "./tests/images/";
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! # use image::{RgbImage, ImageFormat::Jpeg};
-//! # use std::io::Cursor;
-//!     let mut vector_of_bytes: Vec<Vec<u8>> = Vec::new();
-//! # for _ in 0..10 {
-//! #     let mut bytes = Vec::new();
-//! #     let img = RgbImage::new(1000, 1000);
-//! #     let _write = img.write_to(&mut Cursor::new(&mut bytes), Jpeg).unwrap();
-//! #     vector_of_bytes.push(bytes);
-//! # }
-//!     for result in Parallel::from_vec(vector_of_bytes)
-//!         .with_quality(80)
-//!         .with_device(4) // how many threads to use.
-//!         .build()
-//!         .into_iter() {
-//!         let compressed_bytes: Vec<u8> = result?;   
-//!         // do something with the compressed results.
+//!     let image_dir_path = PathBuf::from(format!("{}", TEST_DIR));
+//!
+//!     let mut vec_of_bytes = Vec::new();
+//!     let mut list_of_names = Vec::new();
+//!
+//!     // push the filenames and read bytes into a vector each.
+//!     for file in std::fs::read_dir(image_dir_path.clone())? {
+//!         let filepath = file?.path();
+//!         if filepath.is_file() {
+//!             let filename = filepath.clone()
+//!                 .file_name()
+//!                 .and_then(|osstr| osstr.to_str())
+//!                 .and_then(|a| Some(a.to_string()))
+//!                 .unwrap_or_default();
+//!             list_of_names.push(filename);
+//!             let read_file = std::fs::read(filepath);
+//!             vec_of_bytes.push(read_file?);
+//!         }
 //!     }
+
+//!     // this temporary directory is here for doctest purposes,
+//!     // but you will create your own directory.
+//!     let tempdir = TempDir::new("compressed")?;
+//!     for zipped in Parallel::from_vec(vec_of_bytes)
+//!         .with_quality(50)
+//!         .with_device(4)
+//!         .build()
+//!         .into_iter()
+//!         .zip(list_of_names)
+//!     {
+//!         // saves compresssed JPEG with the original name.
+//!         let (compressed_bytes, name) = zipped;
+//!         if let Ok(bytes) = compressed_bytes {
+//!             std::fs::write(
+//!                 image_dir_path
+//!                     .join(tempdir.path())
+//!                     .join(format!("{name}").as_str()),
+//!                 bytes,
+//!             )?;
+//!             println!("saved: {name}");
+//!         }
+//!     }
+//!     tempdir.close()?;
 //!     Ok(())
 //! }
 //!```
