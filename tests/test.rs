@@ -3,6 +3,7 @@ use image_compare::Algorithm;
 use jippigy::{Parallel, Single};
 use std::io::Cursor;
 use std::path::PathBuf;
+use std::thread;
 
 struct Dummy {}
 impl Dummy {
@@ -96,11 +97,22 @@ fn test_ordering() {
         .collect::<Vec<_>>();
     println!("compressed {} images", compressed.len());
     for (bytes, filename_outer) in original_rbg8.iter().zip(filenames.clone()) {
+        let mut handles = Vec::new();
         for (compressed_bytes, filename_inner) in compressed.iter().zip(filenames.clone()) {
-            let result = image_compare::rgb_hybrid_compare(bytes, compressed_bytes)
-                .unwrap()
-                .score;
-            println!("{filename_outer} and {filename_inner} score: {result}");
+            let local_bytes = bytes.clone();
+            let local_compressed_bytes = compressed_bytes.clone();
+            let local_filename_outer = filename_outer.clone();
+            let handle = thread::spawn(move || {
+                let result =
+                    image_compare::rgb_hybrid_compare(&local_bytes, &local_compressed_bytes)
+                        .unwrap()
+                        .score;
+                println!("{local_filename_outer} and {filename_inner} score: {result}");
+            });
+            handles.push(handle);
+        }
+        for handle in handles.into_iter() {
+            handle.join().unwrap();
         }
     }
 }
