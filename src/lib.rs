@@ -103,7 +103,7 @@ mod single;
 pub(crate) use self::compress::Compress;
 pub(crate) use self::defaults::{DEVICE, QUALITY};
 pub use self::{
-    bulk::{Parallel, ParallelBuilder},
+    bulk::{Parallel, ParallelBuilder, ParallelIntoIterator},
     error::Error,
     single::{Single, SingleBuilder},
 };
