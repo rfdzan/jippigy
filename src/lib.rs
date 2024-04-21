@@ -45,7 +45,7 @@
 //!     let mut vec_of_bytes = Vec::new();
 //!     let mut list_of_names = Vec::new();
 //!
-//!     // push the filenames and read bytes into a vector each.
+//!     // push the filenames and read bytes into a separate vector.
 //!     for file in std::fs::read_dir(image_dir_path.clone())? {
 //!         let filepath = file?.path();
 //!         if filepath.is_file() {
@@ -63,6 +63,8 @@
 //!     // this temporary directory is here for doctest purposes,
 //!     // but you will create your own directory.
 //!     let tempdir = TempDir::new("compressed")?;
+//!
+//!     // zip list_of_names vector with this iterator.
 //!     for zipped in Parallel::from_vec(vec_of_bytes)
 //!         .with_quality(50)
 //!         .with_device(4)
