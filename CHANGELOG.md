@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Dev dependency `image-compare` 0.3.1.
+- Tests for compressed image output order.
+- CI for building and testing on `ubuntu-latest`, `windows-latest`, and `macos-latest`.
+### Changed
+- Parallel compression now returns compressed JPEG bytes in the same order you put them in.
+- JPEG bytes are now shared across threads via a `VecDeque`. Allowing threads to access it as a FIFO queue.
+### Removed
+- `crossbeam` feature `deque`.
+- `Default` impl for `Parallel`.
 ## [1.0.0] - 2024-04-15
 ### Added
 - Added public methods `Single::from_bytes` and `Parallel::from_vec`.
