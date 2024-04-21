@@ -1,5 +1,4 @@
 use image::{ImageFormat::Jpeg, RgbImage};
-use image_compare::Algorithm;
 use jippigy::{Parallel, Single};
 use std::io::Cursor;
 use std::path::PathBuf;
