@@ -49,6 +49,49 @@ fn test_basic_success_parallel() {
     }
 }
 #[test]
+fn test_basic_single_eq() {
+    let test_dir_path = PathBuf::from(TEST_DIR);
+    let bytes = std::fs::read(test_dir_path.join("1.JPG")).unwrap();
+    let bytes2 = std::fs::read(test_dir_path.join("1.JPG")).unwrap();
+    let single1 = Single::from_bytes(bytes);
+    let single2 = Single::from_bytes(bytes2);
+    assert_eq!(single1, single2);
+    let built_single1 = single1.build();
+    let built_single2 = single2.build();
+    assert_eq!(built_single1, built_single2);
+}
+#[test]
+fn test_basic_single_ineq() {
+    let test_dir_path = PathBuf::from(TEST_DIR);
+    let bytes = std::fs::read(test_dir_path.join("1.JPG")).unwrap();
+    let bytes2 = std::fs::read(test_dir_path.join("2.JPG")).unwrap();
+    let single1 = Single::from_bytes(bytes);
+    let single2 = Single::from_bytes(bytes2);
+    assert_ne!(single1, single2);
+    let built_single1 = single1.build();
+    let built_single2 = single2.build();
+    assert_ne!(built_single1, built_single2)
+}
+#[test]
+fn test_basic_parallel_eq() {
+    let test_dir_path = PathBuf::from(TEST_DIR);
+    let vec = std::fs::read_dir(test_dir_path.clone())
+        .unwrap()
+        .flatten()
+        .filter(|direntry| direntry.path().is_file())
+        .map(|direntry| std::fs::read(direntry.path()).unwrap())
+        .collect::<Vec<Vec<u8>>>();
+    let vec2 = std::fs::read_dir(test_dir_path)
+        .unwrap()
+        .flatten()
+        .filter(|direntry| direntry.path().is_file())
+        .map(|direntry| std::fs::read(direntry.path()).unwrap())
+        .collect::<Vec<Vec<u8>>>();
+    let parallel1 = Parallel::from_vec(vec);
+    let parallel2 = Parallel::from_vec(vec2);
+    assert_eq!(parallel1, parallel2);
+}
+#[test]
 // make sure prints doesn't break anything.
 fn test_print() {
     let image_dir_path = PathBuf::from(format!("{}", TEST_DIR));
