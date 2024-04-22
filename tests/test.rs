@@ -3,7 +3,7 @@ use jippigy::{Parallel, Single};
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::thread;
-
+const TEST_DIR: &str = "./tests/images/";
 struct Dummy {}
 impl Dummy {
     fn create_failing_image() -> Vec<u8> {
@@ -47,6 +47,43 @@ fn test_basic_success_parallel() {
     for res in Parallel::from_vec(success).build().into_iter() {
         assert!(res.is_ok());
     }
+}
+#[test]
+// make sure prints doesn't break anything.
+fn test_print() {
+    let image_dir_path = PathBuf::from(format!("{}", TEST_DIR));
+    let img = image_dir_path.join("1.JPG");
+    let bytes = std::fs::read(img).unwrap();
+    let single = Single::from_bytes(bytes);
+    println!("{single}");
+    let single_built = single.build();
+    println!("{single_built}");
+
+    let read = std::fs::read_dir(image_dir_path).unwrap();
+    let mut vec_of_bytes = Vec::new();
+    let mut list_of_names = Vec::new();
+    for image in read {
+        let uw = image.unwrap();
+        if uw.path().is_file() {
+            let _push_str = {
+                let filename = uw
+                    .path()
+                    .file_name()
+                    .and_then(|osstr| osstr.to_str())
+                    .and_then(|a| Some(a.to_string()))
+                    .unwrap_or_default();
+                list_of_names.push(filename);
+            };
+            let read_file = std::fs::read(uw.path());
+            vec_of_bytes.push(read_file.unwrap());
+        }
+    }
+    let builder = Parallel::from_vec(vec_of_bytes)
+        .with_quality(50)
+        .with_device(4);
+    println!("{builder}");
+    let built = builder.build();
+    println!("{built}");
 }
 #[test]
 /// This test attempts to check ONLY the **ordering** of the input original JPEG files and output compressed files. This check takes a while (adds around 3 mins of overall test time on low spec hardware) and it uses around 3-4 GBs of RAM.
