@@ -153,7 +153,7 @@ fn test_ordering() {
         })
         .collect::<Vec<Vec<u8>>>();
     println!("loaded {} images", original.len());
-    let original_rbg8 = original
+    let original_rgb8 = original
         .clone()
         .into_iter()
         .map(|b| {
@@ -162,7 +162,7 @@ fn test_ordering() {
                 .into_rgb8()
         })
         .collect::<Vec<_>>();
-    println!("converted {} images to rbg8", original_rbg8.len());
+    println!("converted {} images to rgb8", original_rgb8.len());
     let compressed = Parallel::from_vec(original)
         .with_quality(50)
         .with_device(4)
@@ -177,7 +177,7 @@ fn test_ordering() {
         .collect::<Vec<_>>();
     println!("compressed {} images", compressed.len());
     let mut handles = Vec::new();
-    for (bytes, filename_outer) in original_rbg8.iter().zip(filenames.clone()) {
+    for (bytes, filename_outer) in original_rgb8.iter().zip(filenames.clone()) {
         for (compressed_bytes, filename_inner) in compressed.iter().zip(filenames.clone()) {
             // This check assumes that two vectors `original_rgb8` and `compressed` is ordered in the exact same way with the order their paths are returned in `filenames`.
 
