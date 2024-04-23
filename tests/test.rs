@@ -3,7 +3,7 @@ use jippigy::{Parallel, Single};
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::thread;
-
+const TEST_DIR: &str = "./tests/images/";
 struct Dummy {}
 impl Dummy {
     fn create_failing_image() -> Vec<u8> {
@@ -49,6 +49,86 @@ fn test_basic_success_parallel() {
     }
 }
 #[test]
+fn test_basic_single_eq() {
+    let test_dir_path = PathBuf::from(TEST_DIR);
+    let bytes = std::fs::read(test_dir_path.join("1.JPG")).unwrap();
+    let bytes2 = std::fs::read(test_dir_path.join("1.JPG")).unwrap();
+    let single1 = Single::from_bytes(bytes);
+    let single2 = Single::from_bytes(bytes2);
+    assert_eq!(single1, single2);
+    let built_single1 = single1.build();
+    let built_single2 = single2.build();
+    assert_eq!(built_single1, built_single2);
+}
+#[test]
+fn test_basic_single_ineq() {
+    let test_dir_path = PathBuf::from(TEST_DIR);
+    let bytes = std::fs::read(test_dir_path.join("1.JPG")).unwrap();
+    let bytes2 = std::fs::read(test_dir_path.join("2.JPG")).unwrap();
+    let single1 = Single::from_bytes(bytes);
+    let single2 = Single::from_bytes(bytes2);
+    assert_ne!(single1, single2);
+    let built_single1 = single1.build();
+    let built_single2 = single2.build();
+    assert_ne!(built_single1, built_single2)
+}
+#[test]
+fn test_basic_parallel_eq() {
+    let test_dir_path = PathBuf::from(TEST_DIR);
+    let vec = std::fs::read_dir(test_dir_path.clone())
+        .unwrap()
+        .flatten()
+        .filter(|direntry| direntry.path().is_file())
+        .map(|direntry| std::fs::read(direntry.path()).unwrap())
+        .collect::<Vec<Vec<u8>>>();
+    let vec2 = std::fs::read_dir(test_dir_path)
+        .unwrap()
+        .flatten()
+        .filter(|direntry| direntry.path().is_file())
+        .map(|direntry| std::fs::read(direntry.path()).unwrap())
+        .collect::<Vec<Vec<u8>>>();
+    let parallel1 = Parallel::from_vec(vec);
+    let parallel2 = Parallel::from_vec(vec2);
+    assert_eq!(parallel1, parallel2);
+}
+#[test]
+// make sure prints doesn't break anything.
+fn test_print() {
+    let image_dir_path = PathBuf::from(format!("{}", TEST_DIR));
+    let img = image_dir_path.join("1.JPG");
+    let bytes = std::fs::read(img).unwrap();
+    let single = Single::from_bytes(bytes);
+    println!("{single}");
+    let single_built = single.build();
+    println!("{single_built}");
+
+    let read = std::fs::read_dir(image_dir_path).unwrap();
+    let mut vec_of_bytes = Vec::new();
+    let mut list_of_names = Vec::new();
+    for image in read {
+        let uw = image.unwrap();
+        if uw.path().is_file() {
+            let _push_str = {
+                let filename = uw
+                    .path()
+                    .file_name()
+                    .and_then(|osstr| osstr.to_str())
+                    .and_then(|a| Some(a.to_string()))
+                    .unwrap_or_default();
+                list_of_names.push(filename);
+            };
+            let read_file = std::fs::read(uw.path());
+            vec_of_bytes.push(read_file.unwrap());
+        }
+    }
+    let builder = Parallel::from_vec(vec_of_bytes)
+        .with_quality(50)
+        .with_device(4);
+    println!("{builder}");
+    let built = builder.build();
+    println!("{built}");
+}
+#[test]
 /// This test attempts to check ONLY the **ordering** of the input original JPEG files and output compressed files. This check takes a while (adds around 3 mins of overall test time on low spec hardware) and it uses around 3-4 GBs of RAM.
 fn test_ordering() {
     let test_img_path = "./tests/images/";
@@ -73,7 +153,7 @@ fn test_ordering() {
         })
         .collect::<Vec<Vec<u8>>>();
     println!("loaded {} images", original.len());
-    let original_rbg8 = original
+    let original_rgb8 = original
         .clone()
         .into_iter()
         .map(|b| {
@@ -82,7 +162,7 @@ fn test_ordering() {
                 .into_rgb8()
         })
         .collect::<Vec<_>>();
-    println!("converted {} images to rbg8", original_rbg8.len());
+    println!("converted {} images to rgb8", original_rgb8.len());
     let compressed = Parallel::from_vec(original)
         .with_quality(50)
         .with_device(4)
@@ -97,7 +177,7 @@ fn test_ordering() {
         .collect::<Vec<_>>();
     println!("compressed {} images", compressed.len());
     let mut handles = Vec::new();
-    for (bytes, filename_outer) in original_rbg8.iter().zip(filenames.clone()) {
+    for (bytes, filename_outer) in original_rgb8.iter().zip(filenames.clone()) {
         for (compressed_bytes, filename_inner) in compressed.iter().zip(filenames.clone()) {
             // This check assumes that two vectors `original_rgb8` and `compressed` is ordered in the exact same way with the order their paths are returned in `filenames`.
 

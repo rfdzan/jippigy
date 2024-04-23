@@ -1,23 +1,13 @@
+use std::fmt::Display;
+
 use crate::{error, Compress, QUALITY};
 /// Custom configuration for building a [`Single`].
 /// This struct is not meant to be used directly.
 /// Use [`Single::from_bytes`] instead.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct SingleBuilder {
     bytes_slice: Vec<u8>,
     quality: u8,
-}
-impl SingleBuilder {
-    /// Specifies the quality of compressed images.
-    /// Defaults to 95 (95% original quality).
-    ///
-    /// **This method is optional**.
-    pub fn with_quality(self, quality: u8) -> SingleBuilder {
-        SingleBuilder {
-            bytes_slice: self.bytes_slice,
-            quality,
-        }
-    }
 }
 impl SingleBuilder {
     /// Builds a new Single with custom configurations.
@@ -36,9 +26,34 @@ impl SingleBuilder {
             quality: self.quality,
         }
     }
+    /// Specifies the quality of compressed images.
+    /// Defaults to 95 (95% original quality).
+    ///
+    /// **This method is optional**.
+    pub fn with_quality(self, quality: u8) -> SingleBuilder {
+        SingleBuilder {
+            bytes_slice: self.bytes_slice,
+            quality,
+        }
+    }
+}
+impl Display for SingleBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let to_show = self
+            .bytes_slice
+            .iter()
+            .take(8)
+            .map(|bytes| bytes)
+            .collect::<Vec<&u8>>();
+        write!(
+            f,
+            "bytes: {:#x?} (truncated)\nquality: {}",
+            to_show, self.quality
+        )
+    }
 }
 /// Single image compressions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct Single {
     bytes_slice: Vec<u8>,
     quality: u8,
@@ -82,5 +97,20 @@ impl Single {
     pub fn compress(self) -> Result<Vec<u8>, error::Error> {
         let compress = Compress::new(self.bytes_slice, self.quality).compress()?;
         Ok(compress)
+    }
+}
+impl Display for Single {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let to_show = self
+            .bytes_slice
+            .iter()
+            .take(8)
+            .map(|bytes| bytes)
+            .collect::<Vec<&u8>>();
+        write!(
+            f,
+            "bytes: {:#x?} (truncated)\nquality: {}",
+            to_show, self.quality
+        )
     }
 }

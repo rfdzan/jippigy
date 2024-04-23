@@ -1,12 +1,13 @@
 use crate::{error, Compress, DEVICE, QUALITY};
 use crossbeam::channel;
 use std::collections::VecDeque;
+use std::fmt::Display;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 /// Custom configuration for building a [`Parallel`].
 /// This struct is not meant to be used directly.
 /// Use [`Parallel::from_vec`] instead.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct ParallelBuilder {
     vec: VecDeque<(usize, Vec<u8>)>,
     quality: u8,
@@ -62,8 +63,19 @@ impl ParallelBuilder {
         }
     }
 }
+impl Display for ParallelBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "len: {}\nquality: {}\ndevice_num: {}",
+            self.vec.len(),
+            self.quality,
+            self.device_num
+        )
+    }
+}
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct ToThread {
     vec: VecDeque<(usize, Vec<u8>)>,
     device_num: u8,
@@ -129,8 +141,19 @@ impl ToThread {
         handles
     }
 }
+impl Display for ToThread {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "len: {}\nquality: {}\ndevice_num: {}",
+            self.vec.len(),
+            self.quality,
+            self.device_num
+        )
+    }
+}
 /// Parallelized compression task.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Parallel {
     to_thread: ToThread,
     transmitter: channel::Sender<Result<Vec<u8>, error::Error>>,
@@ -178,6 +201,11 @@ impl Parallel {
         handles
     }
 }
+impl Display for Parallel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_thread)
+    }
+}
 impl IntoIterator for Parallel {
     type Item = Result<Vec<u8>, error::Error>;
     type IntoIter = ParallelIntoIterator;
@@ -189,6 +217,7 @@ impl IntoIterator for Parallel {
 }
 
 /// Target type when converting [`Parallel`] into an iterator.
+#[derive(Debug, Clone)]
 pub struct ParallelIntoIterator {
     recv: channel::Receiver<Result<Vec<u8>, error::Error>>,
 }
