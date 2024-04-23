@@ -6,12 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Dev dependency `image-compare` 0.3.1.
+- Dev dependency: `image-compare` 0.3.1, `tempdir` 0.3.7.
 - Tests for compressed image output order.
 - CI for building and testing on `ubuntu-latest`, `windows-latest`, and `macos-latest`.
+- Re-exported `ParallelIntoIterator`.
+- Documentations and tests.
 ### Changed
 - Parallel compression now returns compressed JPEG bytes in the same order you put them in.
-- JPEG bytes are now shared across threads via a `VecDeque`. Allowing threads to access it as a FIFO queue.
+- JPEG bytes are now shared across threads via a `VecDeque` (prev. `crossbeam:deque`). Allowing threads to access it as a FIFO queue.
+- Implement what common traits is possible for structs.
 ### Removed
 - `crossbeam` feature `deque`.
 - `Default` impl for `Parallel`.
