@@ -1,13 +1,17 @@
 # jippigy
-A multi-threaded JPEG compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
+A simple, multi-threaded JPEG compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 
-This crate provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
+Uses the common 2x2 chroma subsampling for compression.
 
-# 1.0.0 release!
-Summary of breaking changes:
-- This crate now deals only with your JPEG image bytes. Meaning you have to read your images into a `Vec<u8>` or `Vec<Vec<u8>>` where the former is for `Single` and the latter `Parallel`. Both outputs `Vec<u8>` image bytes which you can save or do more image processing with.
-- It doesn't save images or create directories anymore, in fact it doesn't touch your filesystem at all.
-- Compressing with `Parallel` now uses an iterator.
+Currently this crate doesn't give you finer controls over how you compress your JPEGs. Check out [turbojpeg](https://github.com/honzasp/rust-turbojpeg) for more options.
+
+Provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
+
+# 1.0.1 patch
+Summary:
+- **Parallel compressions return jpeg bytes the same order they are passed into**.
+- Re-exported `ParallelIntoIterator`.
+- Minor optimizations.
 
 See the [CHANGELOG.md](https://github.com/rfdzan/jippigy/blob/master/CHANGELOG.md) for more details.
 # Error building `turbojpeg`?
