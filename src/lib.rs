@@ -1,12 +1,12 @@
 #![warn(missing_docs)]
-//! A multi-threaded JPEG compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
+//! A simple, multi-threaded JPEG compression crate, powered by [turbojpeg](https://github.com/honzasp/rust-turbojpeg).
 //!
-//! This crate provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
+//! Uses the common 2x2 chroma subsampling for compression.
 //!
-//! [`Single`] is meant for single image compressions.
-//! [`Parallel`] is meant for bulk compressions e.g. compressing a list of image bytes.
+//! Currently this crate doesn't give you finer controls over how you compress your JPEGs. Check out [turbojpeg](https://github.com/honzasp/rust-turbojpeg) for more options.
 //!
-//! As the name implies, [`Single`] is single-threaded whereas [`Parallel`] is multi-threaded.
+//! Provides methods of compressing JPEG images in a single-threaded  or multi-threaded way. Both methods preserves [EXIF](https://en.wikipedia.org/wiki/Exif) data of the original JPEG through [img_parts](https://docs.rs/img-parts/latest/img_parts/) crate.
+//!
 //! # Error building `turbojpeg`?
 //! The problem is typically related to `turbojpeg-sys` (see this [question](https://github.com/rfdzan/smoljpg/issues/4#issuecomment-2036065574) and my [attempt](https://github.com/rfdzan/jippigy/actions/runs/8552014019/job/23432251063#step:3:327) at setting up CI for this crate).
 //!
