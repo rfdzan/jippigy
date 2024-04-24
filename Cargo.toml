@@ -8,7 +8,7 @@ categories = ["multimedia::images"]
 repository = "https://github.com/rfdzan/jippigy"
 keywords = ["turbojpeg", "jpeg", "compress", "image", "exif"]
 readme = "README.md"
-exclude = ["src/main.rs"]
+exclude = ["src/main.rs", "tests/"]
 
 [dependencies]
 crossbeam = "0.8.4"
